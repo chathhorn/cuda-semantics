@@ -1,0 +1,32 @@
+var glob;
+
+cufunction synctest(a) {
+      var local;
+
+      local = glob;
+      
+      syncthreads();
+      glob = a;
+
+      print(local);
+}
+
+cufunction testa(a) {
+      var i;
+      print(a);
+
+      i = 0;
+      while (i < 100) do {
+            i = i + 1;
+      }
+}
+
+cufunction testb(a) {
+      print(a);
+}
+
+function main() {
+      glob = 5;
+      testa<<<2, 4, 0, 0>>>(1);
+      testb<<<2, 4, 0, 1>>>(2);
+}
