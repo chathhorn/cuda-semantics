@@ -26,6 +26,7 @@ for functions. */
                 | "function" #Id "(" Ids ")" Stmt
                 // CUDA: function meant to execute on the GPU.
                 | "cufunction" #Id "(" Ids ")" Stmt
+                | "cucufunction" #Id "(" Ids ")" Stmt
 
 /*@ \subsection{Expressions}
 The expression constructs below are standard.  Increment (\texttt{++}) takes
@@ -361,6 +362,12 @@ discards programs which do not respect this requirement. */
        <store>... . => L|->culambda(Xs,S) ...</store>
        <nextLoc> L => L +Nat 1 </nextLoc>
 
+  syntax Val ::= "cuculambda" "(" Ids "," Stmt ")"
+  rule <k> cucufunction F:#Id(Xs:Ids) S:K => . ...</k>
+       <env> Env => Env[L/F] </env>
+       <store>... . => L|->cuculambda(Xs,S) ...</store>
+       <nextLoc> L => L +Nat 1 </nextLoc>
+
 /*@ When we are done with the first pass (pre-processing), the computation
 cell \textsf{k} contains only the token \texttt{execute} (see the module
 SIMPLE-UNTYPED below, whose rule for initiating the execution of a program
@@ -493,6 +500,15 @@ nulary \texttt{return;} statements. */
        <control> <fstack> . => ListItem((Env,K,C)) ...</fstack> C:Bag </control>
        <env> Env => GEnv </env>
        <genv> GEnv:Map </genv>
+       <gid> 0 </gid> // Not allowed in CUDA functions LOL!
+
+  // Functions callable by CUDA kernels.
+  rule <k> _`(_`)(cuculambda(Xs,S), Vs:Vals) ~> K:K => bindto(Xs,Vs) ~> S ~> return; </k>
+       <control> <fstack> . => ListItem((Env,K,C)) ...</fstack> C:Bag </control>
+       <env> Env => GEnv </env>
+       <genv> GEnv:Map </genv>
+       <gid> GId:#Nat </gid>
+       when GId >Nat 0
 
   rule <k> return(V:Val); ~> _ => V ~> K </k>
        <control> <fstack> ListItem((Env,K,C)) => . ...</fstack> (_ => C) </control>
