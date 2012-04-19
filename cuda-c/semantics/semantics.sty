@@ -1,0 +1,62 @@
+\usepackage{textcomp} % helps listings
+\usepackage{listings}
+\usepackage[T1]{fontenc} % so listings double quotes are straight
+\usepackage{graphicx}
+\usepackage{etex}
+\usepackage{courier}
+\usepackage{booktabs}
+%\usepackage{geometry}
+ 
+%\newgeometry{papersize={16in,8.5in},textwidth=15.75in,textheight=7.7in}
+% overrides
+\renewcommand{\ellipses}{\mathrel{\cdot\kern-2pt\cdot\kern-2pt\cdot}}
+\renewcommand{\kallLarge}{\ballLarge}
+\renewcommand{\mall}[3]{\left\langle{#3}\right\rangle_{\sf #2}}
+\renewcommand{\when}[1]{\par{}\hspace{2em} when \ensuremath{#1}\bigskip}
+
+\newcommand{\mycomment}[1]{#1}
+\providecommand{\kctor}{}
+\providecommand{\kmemo}{}
+\providecommand{\kstrat}[1]{}
+
+% configuration
+\lstdefinelanguage{k}{
+	morekeywords={xxxx,zzzz},
+	columns=fullflexible,
+	upquote=true,
+	texcl=true,
+	escapechar=\@,
+	tabsize=2,
+	basicstyle=\ttfamily,
+}
+
+\lstset{language=C}
+\lstset{
+	columns=fullflexible,
+	upquote=true,
+	texcl=true,
+	escapechar=\@,
+	mathescape=true,
+	tabsize=2}
+\lstset{basicstyle=\ttfamily}
+
+\newcommand{\cinline}[1]{\lstinline`#1`}
+\newcommand{\clisting}[1]{\lstinline`#1`}
+\newcommand{\cdisplay}[1]{\lstinline`#1`}
+% 
+\newcommand{\kinline}[1]{\lstinline[language=k]`#1`}
+
+\newcommand{\source}[2][]{%
+	\paragraph[]{%
+		\ifthenelse{\equal{#1}{}}{}{%
+			(#1) %
+		}%
+		#2%
+	}%
+}
+
+\newcommand{\para}[2]{%
+	\S#1\thinspace \P#2%
+}
+
+\newcommand{\broken}[1]{{\color{red}#1}}
