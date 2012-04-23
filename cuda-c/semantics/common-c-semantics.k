@@ -1,6 +1,6 @@
 kmod COMMON-INCOMING-MODULES is
 	including K
-	including C-SYNTAX 
+	including COMMON-C-SYNTAX 
 	including COMMON-C-CONFIGURATION 
 	including K-CONTEXTS 
 	

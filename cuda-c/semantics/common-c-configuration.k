@@ -1,5 +1,5 @@
 kmod COMMON-C-CONFIGURATION is
-	including C-SYNTAX
+	including COMMON-C-SYNTAX
 	
 	op k : -> CellLabel
 	op stackFrame : -> CellLabel

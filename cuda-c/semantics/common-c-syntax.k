@@ -209,7 +209,7 @@ and cvspec =
 	op Const : -> CVSpecifier
 	op Volatile : -> CVSpecifier
 	op Restrict : -> CVSpecifier
-	
+
 /*
 and spec_elem =
 	SpecTypedef          
