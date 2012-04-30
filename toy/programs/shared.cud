@@ -1,0 +1,14 @@
+global testshared() {
+      shared[blockIdx] = shared[blockIdx] + 1;
+      syncthreads();
+      print("[",shared[0],",",shared[1],"]");
+}
+
+host main() {
+      int nblocks = 2;
+      int nthreads = 4;
+      int nshared = nblocks;
+      int stream = 9;
+      testshared<<<nblocks, nthreads, nshared, stream>>>();
+      cudaStreamSynchronize(stream);
+}

@@ -1,5 +1,5 @@
 
-module CUS-SYNTAX
+module CUD-SYNTAX
 
 /*@ \section{Syntax}
 We start by defining the SIMPLE syntax.  The language constructs discussed
@@ -22,11 +22,13 @@ for functions. */
   syntax Ids ::= List{#Id,","} [prec(70) strict]
   syntax Exps ::= List{Exp,","}
 
-  syntax Decl ::= "var" Exps ";"
-                | "function" #Id "(" Ids ")" Stmt
-                // CUDA: function meant to execute on the GPU.
-                | "cufunction" #Id "(" Ids ")" Stmt
-                | "cucufunction" #Id "(" Ids ")" Stmt
+  syntax Decl ::= "int" Exps ";"
+                // CUDA: host function, callable from host.
+                | "host" #Id "(" Ids ")" Stmt
+                // CUDA: device function, callable from host.
+                | "global" #Id "(" Ids ")" Stmt
+                // CUDA: device function, callable from device.
+                | "device" #Id "(" Ids ")" Stmt
 
 /*@ \subsection{Expressions}
 The expression constructs below are standard.  Increment (\texttt{++}) takes
@@ -54,9 +56,9 @@ argument (for the same reason as the increment). */
                | Exp ">=" Exp          [strict prec(37)]
                | Exp "==" Exp          [strict prec(37)]
                | Exp "!=" Exp          [strict prec(37)]
-               | Exp "and" Exp         [strict prec(55) gather(E e)]
-               | Exp "or" Exp          [strict prec(59) gather(E e)]
-               | "not" Exp             [strict prec(53)]
+               | Exp "&&" Exp         [strict prec(55) gather(E e)]
+               | Exp "||" Exp          [strict prec(59) gather(E e)]
+               | "!" Exp             [strict prec(53)]
                | Exp "[" Exps "]"      [strict prec(1)]
                | "sizeOf" "(" Exp ")"  [strict]
                | Exp "(" Exps ")"      [strict prec(2)]
@@ -67,6 +69,7 @@ argument (for the same reason as the increment). */
                | Exp "<<<" Exps ">>>" "(" Exps ")" [strict prec(2)]
                // Block-level synchronization.
                | "syncthreads" "(" ")"  [prec(2)]
+               | "cudaStreamSynchronize" "(" Exp ")"  [prec(2)]
 
 /*@ \subsection{Statements}
 Most of the statement constructs are standard for imperative languages.
@@ -75,30 +78,28 @@ chose \textit{Stmts} not to be a (``\texttt{;}''-separated) list of
 \textit{Stmt}.  Variables can be declared anywhere inside a block, their scope
 ending with the block.  Expressions are allowed to be used for their side
 effects only (followed by a semicolon ``\texttt{;}'').  Functions are allowed
-to abruptly return.  The exceptions are parametric, i.e., one can throw a value
-which is bound to the variable declared by \texttt{catch}.  Threads can be
-dynamically created and terminated, and can synchronize with \texttt{acquire},
-\texttt{release} and \texttt{rendezvous}.  Note that the strictness attributes
-obey the intended evaluation strategy of the various constructs.  In
-particular, the if-then-else construct is strict only in its first argument
-(the if-then construct will be desugared into if-then-else), while the loops
-constructs are not strict in any arguments.  The \texttt{print} statement
-constructs is variadic, that is, it takes an arbitrary number of arguments. */
+to abruptly return.  Threads can be dynamically created and terminated, and can
+synchronize with \texttt{acquire}, \texttt{release} and \texttt{rendezvous}.
+Note that the strictness attributes obey the intended evaluation strategy of
+the various constructs.  In particular, the if-then-else construct is strict
+only in its first argument (the if-then construct will be desugared into
+if-then-else), while the loops constructs are not strict in any arguments.  The
+\texttt{print} statement constructs is variadic, that is, it takes an arbitrary
+number of arguments. */
 
   syntax Stmt ::= "{" "}"
                 | "{" Stmts "}"
                 | Exp ";"                               [strict prec(45)]
-                | "if" Exp "then" Stmt "else" Stmt      [strict(1) prec(90)]
-                | "if" Exp "then" Stmt                  [prec(89)]
-                | "while" Exp "do" Stmt                 [prec(90)]
-                | "for" #Id "=" Exp "to" Exp "do" Stmt  [prec(90)]
+                | "if" "(" Exp ")" Stmt "else" Stmt      [strict(1) prec(90)]
+                | "if" "(" Exp ")" Stmt                  [prec(89)]
+                | "while" "(" Exp ")" Stmt                 [prec(90)]
+                | "for" "(" Exp ";" Exp ";" Exp ")" Stmt  [prec(90)]
                 | "return" Exp ";"                      [strict]
                 | "return" ";"
                 | "print" "(" Exps ")" ";"              [strict]
 
   syntax Stmts ::= Decl | Stmt
                  | Stmts Stmts                         [prec(100) gather(e E)]
-
 
 /*@ \section{Desugared Syntax}
 This part desugars some of SIMPLE's language constructs into core ones.
@@ -109,14 +110,14 @@ functions take a list of arguments, that each conditional has both branches,
 that there are only \texttt{while} loops, and that each variable is
 declared alone and is initialized. */
 
-  macro if E:Exp then S:Stmt = if E then S else {}
-  macro (for X:#Id = E1 to E2 do S) = {var X=E1; while X <= E2 do {S X=X+1;}}
-  macro var E1:Exp, E2:Exp, Es:Exps; = var E1; var E2, Es;
-  macro var X = E; = var X; X = E;
+  macro if(E:Exp) S:Stmt = if(E) S else {}
+  macro for(E1:Exp; E2:Exp; E3:Exp) S:Stmt = {E1; while(E2) {S E3;}}
+  macro int E1:Exp, E2:Exp, Es:Exps; = int E1; int E2, Es;
+  macro int X:#Id = E; = int X; X = E;
 end module
 
-module CUS
-  imports CUS-SYNTAX 
+module CUD
+  imports CUD-SYNTAX 
 
 /*@ \section{Basic Semantic Infrastructure}
 Before one starts adding semantic rules to a \K definition, one needs to
@@ -170,33 +171,35 @@ store map cell \textsf{store} mapping each location to some value, a set cell
 by threads, \textsf{input} and \textsf{output} list cells, and a
 \textsf{nextLoc} cell holding a natural number indicating the next available
 location.  For simplicity, the location counter in \textsf{nextLoc} models an
-actual physical location in the store (and assumes no garbage collection).
-In other definitions (such as KERNELC) we show how one can model locations in
-the store to be symbolic and thus abstract away form the memory allocator
-library.   The \textsf{threads} cell contains one \textsf{thread} cell for
-each existing thread in the program.  Note that the thread cell has
-multiplicity ``*'', which means that at any given moment there could be zero,
-one or more \textsf{thread} cells.  Each \textsf{thread} cell contains a
-computation cell \textsf{k}, a \textsf{control} cell holding the various
-control structures needed to jump to certain points of interest in the program
-execution, a local environment map cell \textsf{env} mapping the thread local
-variables to locations in the store, and finally a \textsf{holds} map cell
-indicating what locks have been acquired by the thread and not released so far
-and how many times (SIMPLE's locks are re-entrant).  The \textsf{control} cell
-currently contains only two subcells, a function stack \textsf{fstack} which
-is a list and an exception stack \textsf{xstack} which is also a list.
-One can add more control structures in the \textsf{control} cell, such as a
-stack for break/continue of loops, etc., if the language is extended with more
-control-changing constructs.  Note that all cells except for \textsf{k} are
-also initialized, in that they contain a ground term of their corresponding
-sort.  The \textsf{k} cell is initialized with the program that will be passed
-to the \K tool, as indicated by the \textit{\$PGM} variable. */
+actual physical location in the store (and assumes no garbage collection). In
+other definitions (such as KERNELC) we show how one can model locations in the
+store to be symbolic and thus abstract away form the memory allocator library.
+The \textsf{threads} cell contains one \textsf{thread} cell for each existing
+thread in the program.  Note that the thread cell has multiplicity ``*'', which
+means that at any given moment there could be zero, one or more \textsf{thread}
+cells.  Each \textsf{thread} cell contains a computation cell \textsf{k}, a
+\textsf{control} cell holding the various control structures needed to jump to
+certain points of interest in the program execution, a local environment map
+cell \textsf{env} mapping the thread local variables to locations in the store,
+and finally a \textsf{holds} map cell indicating what locks have been acquired
+by the thread and not released so far and how many times (SIMPLE's locks are
+re-entrant).  The \textsf{control} cell currently contains one subcell, a
+function stack \textsf{fstack} which is a list. One can add more control
+structures in the \textsf{control} cell, such as a stack for break/continue of
+loops, etc., if the language is extended with more control-changing constructs.
+Note that all cells except for \textsf{k} are also initialized, in that they
+contain a ground term of their corresponding sort.  The \textsf{k} cell is
+initialized with the program that will be passed to the \K tool, as indicated
+by the \textit{\$PGM} variable. */
 
   configuration <T color="red">
                     <threads color="orange">
                       // CUDA: the grid id will be unique for every kernel call.
                       <nextGid> 1 </nextGid> 
                       <grids> .Map </grids>
+                      // CUDA: block-level memory.
+                      <shared> .Map </shared>
+                      // CUDA: streams.
                       <streams> .Set </streams>
                       <stream multiplicity="*"> 
                         <sid> 0 </sid>
@@ -211,12 +214,10 @@ to the \K tool, as indicated by the \textit{\$PGM} variable. */
                         <k color="green"> ($PGM:K ~> execute) </k>
                         <control color="cyan">
                           <fstack color="blue"> .List </fstack>
-                          <xstack color="purple"> .List </xstack>
                         </control>
                         <env color="violet"> .Map </env>
                       </thread>
                     </threads>
-                  // TODO: move some/all of these to the host.
                   <genv color="pink"> .Map </genv>
                   <store color="white"> .Map </store>
                   <in color="magenta" stream="stdin"> .List </in>
@@ -266,7 +267,7 @@ soon allow instead a side-condition of the form ``where $L$ fresh''.} */
 
   syntax K ::= "undefined"  [latex("\bot")]
 
-  rule <k> var X:#Id; => . ...</k>
+  rule <k> int X:#Id; => . ...</k>
        <env> Env:Map => Env[L:#Nat/X] </env>
        <store>... . => L|->undefined ...</store>
        <nextLoc> L => L +Nat 1 </nextLoc>
@@ -285,7 +286,7 @@ of array declarations can be arbitrary expressions, this virtually
 means that we can dynamically allocate memory in SIMPLE by means of
 array declarations. */
 
-  rule <k> var X[N:#Nat]; => . ...</k>
+  rule <k> int X[N:#Nat]; => . ...</k>
        <env> Env => Env[L/X] </env>
        <store>... . => L |-> arrayRef(L +Nat 1, N)
                        L +Nat 1 .. L +Nat N |-> undefined ...</store>
@@ -297,7 +298,7 @@ This way, we will only need to give semantics to uni-dimensional arrays.
 First, the context rule below is used to request the evaluation of array
 dimensions: */
 
-  context var X[HOLE];
+  context int X[HOLE];
 
 /*@  Upon evaluating the array dimensions, the code generation rule below
 desugars multi-dimensional array declaration to uni-dimensional declarations.
@@ -309,13 +310,13 @@ inside the loop body with fewer dimensions.  The second variable,
 dimension: */
 
   syntax #Id ::= "$1" | "$2"
-  rule var X[N1,N2,Vs:Vals]; =>
-       var X[N1];
+  rule int X[N1,N2,Vs:Vals]; =>
+       int X[N1];
        {
-         var $1 = X;
-         for $2 = 0 to _-_(N1,1) do   // stupid parser
+         int $1 = X;
+         for ($2 = 0; $2 != N1; ++$2)
          {
-           (var X[N2,Vs];)            // stupid parser
+           (int X[N2,Vs];)            // stupid parser
            $1[$2] = X;
          }
        }  [structural]
@@ -349,7 +350,7 @@ global variable before declaring a local function).  The type checker of
 SIMPLE, also defined in \K (see simple/typed/static),
 discards programs which do not respect this requirement. */
 
-  rule <k> function F:#Id(Xs:Ids) S:K => . ...</k>
+  rule <k> host F:#Id(Xs:Ids) S:K => . ...</k>
        <env> Env => Env[L/F] </env>
        <store>... . => L|->lambda(Xs,S) ...</store>
        <nextLoc> L => L +Nat 1 </nextLoc>
@@ -357,13 +358,13 @@ discards programs which do not respect this requirement. */
 /*@ A CUDA function meant to execute on the GPU. */
 
   syntax Val ::= "culambda" "(" Ids "," Stmt ")"
-  rule <k> cufunction F:#Id(Xs:Ids) S:K => . ...</k>
+  rule <k> global F:#Id(Xs:Ids) S:K => . ...</k>
        <env> Env => Env[L/F] </env>
        <store>... . => L|->culambda(Xs,S) ...</store>
        <nextLoc> L => L +Nat 1 </nextLoc>
 
   syntax Val ::= "cuculambda" "(" Ids "," Stmt ")"
-  rule <k> cucufunction F:#Id(Xs:Ids) S:K => . ...</k>
+  rule <k> device F:#Id(Xs:Ids) S:K => . ...</k>
        <env> Env => Env[L/F] </env>
        <store>... . => L|->cuculambda(Xs,S) ...</store>
        <nextLoc> L => L +Nat 1 </nextLoc>
@@ -437,9 +438,9 @@ become values of expected sorts: */
   rule I1 >= I2 => I1 >=Int I2
   rule V1:Val == V2:Val => V1 ==Bool V2
   rule V1 != V2 => V1 =/=Bool V2
-  rule B1:#Bool and B2:#Bool => B1 andBool B2
-  rule B1 or B2 => B1 orBool B2
-  rule not(B:#Bool) => notBool(B)
+  rule B1:#Bool && B2:#Bool => B1 andBool B2
+  rule B1 || B2 => B1 orBool B2
+  rule !(B:#Bool) => notBool(B)
 
 /*@ \subsection{Array lookup}
 Untyped SIMPLE does not check array bounds (the dynamically typed version of
@@ -644,8 +645,8 @@ can assume that its first argument will eventually be evaluated.  The rules
 below cover the only two possibilities in which the conditional is allowed to
 proceed (otherwise the rewriting process gets stuck). */
 
-  rule if  true then S else _ => S
-  rule if false then _ else S => S
+  rule if(true) S else _ => S
+  rule if(false) _ else S => S
 
 /*@ \subsection{While loop}
 The simplest way to give the semantics of the while loop is by unrolling.
@@ -659,8 +660,8 @@ below works because our while loops in SIMPLE are indeed very basic.  If we
 allowed break/continue of loops then we would need a completely different
 semantics, which would also involve the \textsf{control} cell. */
 
-  rule <k> while E:Exp do S
-    => if E then {S while E do S} else {} ...</k>  [structural]
+  rule <k> while(E:Exp) S
+    => if(E) {S while(E) S} else {} ...</k>  [structural]
 
 /*@ \subsection{Print}
 The \texttt{print} statement was strict, so all its arguments are now
@@ -690,45 +691,47 @@ other on the GPU.
 In this simplified version, {\tt grid\_dim}, {\tt block\_dim} and {\tt stream} are single
 numbers (nats) and we ignore shared.*/
 
-  // stream, nblocks, threads per block, free vars, to-bind vals, function body.
-  syntax K ::= "culaunchkernel" "(" #Nat "," #Nat "," #Nat "," Ids "," Vals "," Stmt ")"
+  // stream, nblocks, threads per block, nshared, free vars, to-bind vals, function body.
+  syntax K ::= "culaunchkernel" "(" #Nat "," #Nat "," #Nat "," #Nat "," Ids "," Vals "," Stmt ")"
              // grid id, blocks left to spawn, threads left to spawn.
              | "culaunchthreads" "(" #Nat "," #Nat "," #Nat ")"
              // grid id
              | "cunextgrid" "(" #Nat ")"
-             // nblocks, nthreads, free vars, vals to bind, CUDA function body
-             | "cugrid" "(" #Nat "," #Nat "," Ids "," Vals "," Stmt ")"
+             // nblocks, nthreads, nshared, free vars, vals to bind, CUDA function body
+             | "cugrid" "(" #Nat "," #Nat "," #Nat "," Ids "," Vals "," Stmt ")"
+             // Location of shared memory in the store.
+             | "cublock" "(" #Nat ")"
              | "cujoin" "(" #Nat ")"
 
 /*@ \subsection{Calling a kernel function} */
 
-  rule <k> culambda(Xs:Ids,S:K) <<< NBlocks:#Nat,NThreads:#Nat,Shared:#Nat,Stream:#Nat,.Vals >>> ( Vs:Vals ) => 
-                     culaunchkernel(Stream, NBlocks, NThreads, Xs, Vs, S) ...</k>
+  rule <k> culambda(Xs:Ids,S:K) <<< NBlocks:#Nat,NThreads:#Nat,NShared:#Nat,Stream:#Nat,.Vals >>> ( Vs:Vals ) => 
+                     culaunchkernel(Stream, NBlocks, NThreads, NShared, Xs, Vs, S) ...</k>
        <gid> 0 </gid>
-  rule <k> culambda(Xs:Ids,S:K) <<< NBlocks:#Nat,NThreads:#Nat,Shared:#Nat,.Vals >>> ( Vs:Vals ) => 
-                     culaunchkernel(0, NBlocks, NThreads, Xs, Vs, S) ...</k>
+  rule <k> culambda(Xs:Ids,S:K) <<< NBlocks:#Nat,NThreads:#Nat,NShared:#Nat,.Vals >>> ( Vs:Vals ) => 
+                     culaunchkernel(0, NBlocks, NThreads, NShared, Xs, Vs, S) ...</k>
        <gid> 0 </gid>
   rule <k> culambda(Xs:Ids,S:K) <<< NBlocks:#Nat,NThreads:#Nat,.Vals >>> ( Vs:Vals ) => 
-                     culaunchkernel(0, NBlocks, NThreads, Xs, Vs, S) ...</k>
+                     culaunchkernel(0, NBlocks, NThreads, 0, Xs, Vs, S) ...</k>
        <gid> 0 </gid>
   rule <k> culambda(Xs:Ids,S:K) <<< NThreads:#Nat,.Vals >>> ( Vs:Vals ) => 
-                     culaunchkernel(0, 1, NThreads, Xs, Vs, S) ...</k>
+                     culaunchkernel(0, 1, NThreads, 0, Xs, Vs, S) ...</k>
        <gid> 0 </gid>
 
-  rule <k> culaunchkernel(_, 0, _, _, _, _) => true ... </k> 
-  rule <k> culaunchkernel(_, _, 0, _, _, _) => true ... </k> 
+  rule <k> culaunchkernel(_, 0, _, _, _, _, _) => true ... </k> 
+  rule <k> culaunchkernel(_, _, 0, _, _, _, _) => true ... </k> 
 
 /*@ \subsection{Launching CUDA threads} */
 
-  rule <k> culaunchkernel(SId:#Nat, NBlocks:#Nat, NThreads:#Nat, Xs:Ids, Vs:Vals, S:K) => true ...</k>
+  rule <k> culaunchkernel(SId:#Nat, NBlocks:#Nat, NThreads:#Nat, NShared:#Nat, Xs:Ids, Vs:Vals, S:K) => true ...</k>
        <nextGid> GId:#Nat => GId +Nat 1 </nextGid> 
-       <grids>... (. => GId |-> cugrid(NBlocks, NThreads, Xs, Vs, S)) ...</grids>
+       <grids>... (. => GId |-> cugrid(NBlocks, NThreads, NShared, Xs, Vs, S)) ...</grids>
        <stream>... <sid> SId </sid> 
              <streamContents> ... (. => cunextgrid(GId)) </streamContents> 
              ...</stream>
-  rule <k> culaunchkernel(SId:#Nat, NBlocks:#Nat, NThreads:#Nat, Xs:Ids, Vs:Vals, S:K) => true ...</k>
+  rule <k> culaunchkernel(SId:#Nat, NBlocks:#Nat, NThreads:#Nat, NShared:#Nat, Xs:Ids, Vs:Vals, S:K) => true ...</k>
        <nextGid> GId:#Nat => GId +Nat 1 </nextGid> 
-       <grids>... (. => GId |-> cugrid(NBlocks, NThreads, Xs, Vs, S)) ...</grids>
+       <grids>... (. => GId |-> cugrid(NBlocks, NThreads, NShared, Xs, Vs, S)) ...</grids>
        <streams> Streams:Set (. => SetItem(SId)) </streams>
        (. => <stream>... <sid> SId </sid> 
              <streamContents> cunextgrid(GId) </streamContents> 
@@ -737,15 +740,21 @@ numbers (nats) and we ignore shared.*/
 
   rule <streamContents> cunextgrid(GId:#Nat) =>
        culaunchthreads(GId, sdNat(NBlocks, 1), sdNat(NThreads, 1)) ...</streamContents>
-       <grids>... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, _, _, _) ...</grids>
+       <grids>... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, _, _, _, _) ...</grids>
 
 /*@ Launch the first thread of a grid. This thread is responsible for clearing
 the stream when it's done executing.*/
 
+  syntax K ::= "sharedLoc" "(" #Nat "," #Nat ")"
+
   rule <streamContents> culaunchthreads(GId:#Nat, 0, 0) => cujoin(GId) ...</streamContents>
-       <grids> ... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, Xs:Ids, Vs:Vals, S:K) ... </grids>
+       <grids> ... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, NShared:#Nat, Xs:Ids, Vs:Vals, S:K) ... </grids>
        <genv> Env:Map </genv>
-      (. => <thread>... <k> bindto((#id "bid", #id "tid", Xs), (0, 0, Vs)) ~> S ~> cusyncgrid ~> cujoin(GId) </k> 
+       <nextLoc> L:#Nat => L +Nat 1 +Nat NShared </nextLoc>
+       <shared>... . => sharedLoc(GId, 0) |-> L ... </shared>
+       <store>... . => L |-> arrayRef(L +Nat 1, NShared)
+                       L +Nat 1 .. L +Nat NShared |-> 0 ...</store> // zeroing shared memory.
+      (. => <thread>... <k> cufillenv ~> S ~> cusyncgrid ~> cujoin(GId) </k> 
             <gid> GId </gid>
             <bid> 0 </bid>
             <tid> 0 </tid> 
@@ -754,9 +763,13 @@ the stream when it's done executing.*/
 /*@ Launch the first thread of a block. */
 
   rule <streamContents> culaunchthreads(GId:#Nat, (BId:#Nat => sdNat(BId, 1)), (0 => sdNat(NThreads, 1))) ...</streamContents>
-       <grids> ... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, Xs:Ids, Vs:Vals, S:K) ... </grids>
+       <grids> ... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, NShared:#Nat, Xs:Ids, Vs:Vals, S:K) ... </grids>
        <genv> Env:Map </genv>
-      (. => <thread>... <k> bindto((#id "bid", #id "tid", Xs), (BId, 0, Vs)) ~> S ~> cusyncgrid </k> 
+       <nextLoc> L:#Nat => L +Nat 1 +Nat NShared </nextLoc>
+       <shared>... . => sharedLoc(GId, BId) |-> L ... </shared>
+       <store>... . => L |-> arrayRef(L +Nat 1, NShared)
+                       L +Nat 1 .. L +Nat NShared |-> 0 ...</store> // zeroing shared memory.
+      (. => <thread>... <k> cufillenv ~> S ~> cusyncgrid </k> 
             <gid> GId </gid>
             <bid> BId </bid>
             <tid> 0 </tid> 
@@ -766,14 +779,23 @@ the stream when it's done executing.*/
 /*@ Launch the other threads. */
 
   rule <streamContents> culaunchthreads(GId:#Nat, BId:#Nat, (TId:#Nat => sdNat(TId, 1))) ...</streamContents>
-       <grids> ... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, Xs:Ids, Vs:Vals, S:K) ... </grids>
+       <grids> ... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, NShared:#Nat, Xs:Ids, Vs:Vals, S:K) ... </grids>
        <genv> Env:Map </genv>
-      (. => <thread>... <k> bindto((#id "bid", #id "tid", Xs), (BId, TId, Vs)) ~> S ~> cusyncgrid </k> 
+      (. => <thread>... <k> cufillenv ~> S ~> cusyncgrid </k> 
             <gid> GId </gid>
             <bid> BId </bid>
             <tid> TId </tid> 
             <env> Env </env> ...</thread>)
        when TId >Nat 0
+
+  syntax K ::= "cufillenv"
+  rule <gid> GId:#Nat </gid>
+       <bid> BId:#Nat </bid>
+       <tid> TId:#Nat </tid> 
+       <grids> ... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, _, Xs:Ids, Vs:Vals, S:K) ... </grids>
+       <shared> ... sharedLoc(GId, BId) |-> L:#Nat ... </shared>
+       <k> cufillenv => bindto((#id "blockIdx", #id "threadIdx", #id "gridDim", #id "blockDim", Xs), (BId, TId, NBlocks, NThreads, Vs)) ... </k>
+      <env> Env => Env[L/#id "shared"] </env>
 
 /*@ Clear the stream so the next grid can execute. */
 
@@ -787,10 +809,10 @@ the stream when it's done executing.*/
 
 /*@ Start the token at thread 0. */
 
-  rule <grids>... GId |-> cugrid(_, NThreads:#Nat, _, _, _) ...</grids>
+  rule <grids>... GId |-> cugrid(_, NThreads:#Nat, _, _, _, _) ...</grids>
        <thread>... <tid> 0 </tid> <gid> GId:#Nat </gid> <bid> BId:#Nat </bid> 
        <k> syncthreads() => cusync(1, GId, BId, 0, NThreads) ...</k> ...</thread>
-  rule <grids>... GId |-> cugrid(_, NThreads:#Nat, _, _, _) ...</grids>
+  rule <grids>... GId |-> cugrid(_, NThreads:#Nat, _, _, _, _) ...</grids>
        <thread>... <tid> TId:#Nat </tid> <gid> GId:#Nat </gid> <bid> BId:#Nat </bid>
        <k> syncthreads() => cusync(0, GId, BId, TId, NThreads) ...</k> ...</thread>
        when TId >Nat 0
@@ -818,13 +840,18 @@ blocks in the grid (the only time a clash would be possible), then NThreads
 will be different for the grid-level and block-level sync.*/
 
   syntax K ::= "cusyncgrid"
-  rule <grids>... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, _, _, _) ...</grids>
+  rule <grids>... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, _, _, _, _) ...</grids>
        <thread>... <bid> 0 </bid> <tid> 0 </tid> <gid> GId:#Nat </gid>
        <k> cusyncgrid => cusync(1, GId, 0, 0, NThreads *Nat NBlocks); ...</k> ...</thread>
-  rule <grids>... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, _, _, _) ...</grids>
+  rule <grids>... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, _, _, _, _) ...</grids>
        <thread>... <bid> BId:#Nat </bid> <tid> TId:#Nat </tid> <gid> GId:#Nat </gid>
        <k> cusyncgrid => cusync(0, GId, 0, (NThreads *Nat BId) +Nat TId, NThreads *Nat NBlocks); ...</k> ...</thread>
        when BId >Nat 0 orBool TId >Nat 0
+
+/*@ \subsection{Stream Management} */
+
+  rule <k> cudaStreamSynchronize(Sid:#Nat) => . ... </k>
+       <stream> <sid>Sid</sid> <streamContents> . </streamContents> </stream>
 
 /*@ \subsection{Clean up completed threads} */
 

@@ -1,6 +1,6 @@
 int glob;
 
-global synctest(a) {
+device synctest(a) {
       int local;
 
       local = glob;
@@ -12,17 +12,11 @@ global synctest(a) {
 }
 
 global testa(a) {
-      int i;
-      print(a);
-
-      i = 0;
-      while (i < 100) {
-            i = i + 1;
-      }
+      synctest(a);
 }
 
 global testb(a) {
-      print(a);
+      synctest(a);
 }
 
 host main() {
