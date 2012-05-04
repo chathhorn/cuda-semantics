@@ -1,0 +1,36 @@
+
+global square(ptr, N) {
+      int idx = blockIdx * blockDim + threadIdx;
+      ptr = ptr + idx;
+      if (idx < N) *ptr = *ptr * *ptr;
+}
+ 
+host main() { 
+      int i, ptr_h, ptr_d;  // Pointer to host & device arrays
+
+      print("How many squares would you like? ");
+      int N = read();          // Number of elements in arrays
+
+      ptr_h = malloc(N);         // Allocate array on host
+      cudaMalloc(&ptr_d, N);   // Allocate array on device
+      // Initialize host array and copy it to CUDA device
+      for (i = 0; i != N; ++i) *(ptr_h + i) = i;
+      cudaMemcpy(ptr_d, ptr_h, N, cudaMemcpyHostToDevice);
+
+      // Do calculation on device:
+      int nthreads = 4;
+      int nblocks = N/nthreads + 1;
+      square <<<nblocks, nthreads>>> (ptr_d, N);
+
+      // Retrieve result from device and store it in host array
+      cudaMemcpy(ptr_h, ptr_d, N, cudaMemcpyDeviceToHost);
+
+      // Print results
+      for (i = 0; i != N; ++i) print(i, ": ", *(ptr_h + i), "\n");
+
+      // Cleanup
+      free(ptr_h); 
+      cudaFree(ptr_d);
+}
+
+
