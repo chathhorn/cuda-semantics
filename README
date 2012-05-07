@@ -1,2 +1,3 @@
-Semantics in K for the "SIMPLE" language extended with a few CUDA-like
-features.
+Semantics in K for a few CUDA-like features implemented as extensions to a
+semantics for C and a toy language ("simple").
+
