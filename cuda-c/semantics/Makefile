@@ -10,30 +10,27 @@ K_TCP = $(K_BASE)/core/maude/lib/TCPSupport
 K-PL-BUILTINS = $(K_BASE)/core/maude/lib/pl-builtins
 K_PL_MODEL_CHECKER = $(K_BASE)/core/maude/lib/k-model-checker
 K_PL_META_LEVEL = $(K_BASE)/core/maude/lib/pl-meta-level
+K_LATEX_STYLE = $(K_BASE)/core/latex/k.sty
 
 
-K_BASE_FILES = $(K_PRELUDE).maude $(K_SOCKETS).maude $(K_TCP).maude $(K-PL-BUILTINS).maude $(K_PL_MODEL_CHECKER).maude $(K_PL_META_LEVEL).maude
+K_BASE_FILES = $(K_PRELUDE).maude $(K_SOCKETS).maude $(K-PL-BUILTINS).maude $(K_PL_MODEL_CHECKER).maude $(K_PL_META_LEVEL).maude
 K_FILES = $(K_BASE_FILES) $(K_MAUDE)
 
 #COMPILE_C = perl -d:DProf $(K_MAUDE) c.k -u -language C
-# chathhorn: switching to CUDA.
-#COMPILE_C = $(K_MAUDE) c.k -u -language C -anywhere "anywhere" -transition "interpRule"
-COMPILE_C = $(K_MAUDE) cuda.k -u -language CUDA -anywhere "anywhere" -transition "interpRule"
+COMPILE_C = $(K_MAUDE) c.k -u -language C -anywhere "anywhere" -transition "interpRule"
 # -lib maudeLib/common-c-builtins.maude
 # -transition "computational"
-#COMPILE_C_ND = $(K_MAUDE) c.k -u -language C -anywhere "anywhere" -transition "computational" -superheat "ndheat" -supercool "ndlocal"
-COMPILE_C_ND = $(K_MAUDE) cuda.k -u -language CUDA -anywhere "anywhere" -transition "computational" -superheat "ndheat" -supercool "ndlocal"
+COMPILE_C_ND = $(K_MAUDE) c.k -u -language C -anywhere "anywhere" -transition "computational" -superheat "ndheat" -supercool "ndlocal"
 #-lib maudeLib/common-c-builtins.maude
 
-# chathhorn: adding cuda-syntax.k (replacing c-syntax.k), cuda.k (replacing
-# c.k) and cuda-semantics.k.
-COMMON_C_FILES = cuda-syntax.k \
+# chathhorn: adding cuda-syntax.k and cuda-semantics.k.
+COMMON_C_FILES = c-syntax.k cuda-syntax.k \
 common-c-syntax.k common-c-helpers.k common-c-configuration.k common-c-expressions.k common-c-semantics.k common-c-statements.k common-c-declarations.k common-c-typing.k
-DYNAMIC_C_FILES = cuda.k cuda-semantics.k dynamic-c-semantics.k dynamic-c-configuration.k dynamic-c-expressions.k dynamic-c-errors.k dynamic-c-statements.k dynamic-c-conversions.k dynamic-c-typing.k dynamic-c-declarations.k dynamic-c-memory.k dynamic-c-standard-lib.k dynamic-c-ltl.k
+DYNAMIC_C_FILES = c.k cuda-semantics.k dynamic-c-semantics.k dynamic-c-configuration.k dynamic-c-expressions.k dynamic-c-errors.k dynamic-c-statements.k dynamic-c-conversions.k dynamic-c-typing.k dynamic-c-declarations.k dynamic-c-memory.k dynamic-c-standard-lib.k
 
 LATEX_CLEAN_FILES = temp-c-*.tex temp-c-*.log temp.pdflatex.out *.pdf temp.kpdf.out *.tex *.log *.aux
 K_CLEAN_FILES = *.maude .k kcompile_* \
-c-compiled.maude.tmp.bak c-compiled.maude.0 c-compiled.maude.1 c-compiled.maude.1.bak c-compiled-nd.maude.0 c-compiled-nd.maude.1 c-compiled-nd.maude.1.bak c-compiled-nd.maude.bak static-c.k.bak \
+c-compiled.maude.tmp.bak c-compiled.maude.0 c-compiled.maude.1 c-compiled.maude.1.bak c-compiled-nd.maude.0 c-compiled-nd.maude.1 c-compiled-nd.maude.1.bak c-compiled-nd.maude.bak static-c.k.bak c-compiled.maude \
 duplicateLabels.txt 
 
 .PHONY: all clean force semantics pdf common-pdf-modules common-c-%-fake
@@ -54,26 +51,55 @@ ifeq ($(K_BASE),)
 	@exit 1
 endif
 
+
+temp-c-thesis.tex: PDF_FILES=\
+common-c-syntax.k \
+# common-c-configuration.k \
+dynamic-c-conversions.k \
+dynamic-c-expressions.k \
+dynamic-c-statements.k
+temp-c-thesis.tex: PDF_MODULES=`grep -o '^kmod.* is' $(PDF_FILES) | grep -o ' .* '`
+temp-c-thesis.tex: check-vars $(K_MAUDE) c.k $(PDF_FILES)
+	@echo "Creating latex..."
+	$(K_MAUDE) c.k -l C -package-options "style=bubble" -latex $(PDF_MODULES) -output temp-c-thesis 1> temp.kpdf.out
+	
 # k-includes.k: check-vars Makefile
 # @echo > k-includes.k
 #@echo "load $(K_PRELUDE)" >> k-includes.k
 #@echo "load $(K_SOCKETS)" >> k-includes.k
-
-%.tex: PDF_MODULES=`grep -o '^kmod.* is' $*.k | grep -o ' .* '`
-%.tex: check-vars $(K_MAUDE) c.k %.k Makefile
-	@rm -f temp-c-$*.tex
+temp-c-%.tex: PDF_MODULES=`grep -o '^module.* is' $*.k | grep -o ' .* '`
+temp-c-%.tex: check-vars $(K_MAUDE) c.k %.k
+#@rm -f temp-c-$*.tex
 	@echo "Creating latex..."
-	$(K_MAUDE) c.k -l C -style mm -latex $(PDF_MODULES) -output temp-c-$* 1> temp.kpdf.out
-	@sed -i 's|}mybracket|}\\mybracket|' temp-c-$*.tex
-	@sed -i 's|\\begin{document}|\\input{semantics.sty}\n\\begin{document}|' temp-c-$*.tex
-# @sed -i 's|\\begin{kdefinition}||' temp-c-$*.tex
-# @sed -i 's|\\end{kdefinition}||' temp-c-$*.tex
-	@mv temp-c-$*.tex $@
+	$(K_MAUDE) c.k -l C -package-options "style=bubble" -latex $(PDF_MODULES) -output temp-c-$* 1> temp.kpdf.out
+	
+%.tex: temp-c-%.tex Makefile
+	@echo "Modifying latex..."
+	@cp $< $@.temp
+	@perl -i -pe 's|\\documentclass{article}|\\documentclass[landscape]{article}|' $@.temp
+# get rid of page breaks
+	@perl -i -pe 's|\\newpage||' $@.temp
+	@perl -i -pe 's|}mybracket|}\\mybracket|' $@.temp
+	@perl -i -pe 's|\\mathrel{}||g' $@.temp
+# include my custom style file
+	@perl -i -pe 's|\\begin{document}|\\input{semantics.sty}\n\\begin{document}|' $@.temp
+# get rid of the name attributes so they don't show up twice
+	@perl -i -pe 's/(\\(?:kdefine|krule){([a-zA-Z0-9-]+)}.*)\\kattribute{\2}[ ]?/\1\3/' $@.temp
+# get rid of structural annotations
+	@perl -i -pe 's/\\kattribute{structural}[ ]?//' $@.temp
+# get rid of klabel annotations
+	@perl -i -pe 's/\\kattribute{klabel\([a-zA-Z0-9-]+\)}[ ]?//' $@.temp
+# fix double quotes
+	@perl -i -pe "s/ ' '/''/g" $@.temp	
+	@perl -i -pe "s/{([^}]+)}_{([^}]+)}' '/{\1''}_{\2}/g" $@.temp	
+# remove extraneous spaces at end of attributes
+	@perl -i -pe 's/(\\kattribute{[a-zA-Z-()]+})[ ]?}/\1}/' $@.temp
+	@mv $@.temp $@
 
-%.pdf: %.tex semantics.sty
+%.pdf: %.tex $(K_LATEX_STYLE) semantics.sty
 	@echo "Compiling latex..."
 	@if ! pdflatex -halt-on-error -interaction=nonstopmode -jobname=temp-c-$* $* 1> temp.pdflatex.out; then cat temp.pdflatex.out; false; fi
-	@if ! pdflatex -halt-on-error -interaction=nonstopmode -jobname=temp-c-$* $* 1> temp.pdflatex.out; then cat temp.pdflatex.out; false; fi
+#@if ! pdflatex -halt-on-error -interaction=nonstopmode -jobname=temp-c-$* $* 1> temp.pdflatex.out; then cat temp.pdflatex.out; false; fi
 	@mv temp-c-$*.pdf $@
 	@echo "Done."
 
@@ -109,33 +135,36 @@ all.tex:
 
 	
 common-pdf-modules: \
-common-c-syntax.pdf \
+c.pdf \
 common-c-configuration.pdf \
-dynamic-c-configuration.pdf \
-common-c-helpers.pdf \
-common-c-statements.pdf \
-dynamic-c-statements.pdf \
-common-c-expressions.pdf \
-dynamic-c-expressions.pdf \
 common-c-declarations.pdf \
-dynamic-c-declarations.pdf \
-common-c-typing.pdf \
-dynamic-c-typing.pdf \
-dynamic-c-conversions.pdf \
-dynamic-c-memory.pdf \
-dynamic-c-standard-lib.pdf \
+common-c-expressions.pdf \
+common-c-helpers.pdf \
 common-c-semantics.pdf \
+common-c-sized-operations.pdf \
+common-c-statements.pdf \
+common-c-syntax.pdf \
+common-c-typing.pdf \
+c-syntax.pdf \
+dynamic-c-configuration.pdf \
+dynamic-c-conversions.pdf \
+dynamic-c-declarations.pdf \
+dynamic-c-errors.pdf \
+dynamic-c-expressions.pdf \
+dynamic-c-memory.pdf \
 dynamic-c-semantics.pdf \
-c.pdf
+dynamic-c-standard-lib.pdf \
+dynamic-c-statements.pdf \
+dynamic-c-typing.pdf
+
 # c-syntax.pdf
 #
 
 
-# chathhorn: c-compiled.maude to cuda-compiled.maude.
 c-compiled.maude.0: check-vars $(K_FILES) $(COMMON_C_FILES) $(DYNAMIC_C_FILES) $(INSERT_LINE)
 	@echo "Compiling the C definition..."
 	@$(COMPILE_C)
-	@mv cuda-compiled.maude c-compiled.maude.0
+	@mv c-compiled.maude c-compiled.maude.0
 
 c-compiled.maude.tmp: FIRST_LINE=`perl $(FIRST_LINE_SCRIPT) c-compiled.maude.0`
 c-compiled.maude.tmp: c-compiled.maude.0 maudeLib/modelcheck.maude Makefile
@@ -173,10 +202,10 @@ c-compiled-nd.maude: check-vars c-compiled-nd.maude.0 $(K_FILES) $(COMMON_C_FILE
 	@cp c-compiled-nd.maude.1 c-compiled-nd.maude
 	@echo "Done".
 
-c-total.maude: check-vars c-compiled.maude $(K_BASE_FILES) Makefile
+c-total.maude: check-vars c-compiled.maude $(K_BASE_FILES) $(K_TCP).maude Makefile
 	@echo "c-compiled.maude" | perl $(SCRIPTS_DIR)/slurpFrontEnd.pl > $@
 
-c-total-nd.maude: check-vars c-compiled-nd.maude $(K_BASE_FILES) Makefile
+c-total-nd.maude: check-vars c-compiled-nd.maude $(K_BASE_FILES) $(K_TCP).maude Makefile
 	@echo "c-compiled-nd.maude" | perl $(SCRIPTS_DIR)/slurpFrontEnd.pl > $@
 
 semantics: c-total.maude c-total-nd.maude

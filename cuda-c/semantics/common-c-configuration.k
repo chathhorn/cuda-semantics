@@ -1,21 +1,7 @@
-kmod COMMON-C-CONFIGURATION is
-	including COMMON-C-SYNTAX
-	
-	op k : -> CellLabel
-	op stackFrame : -> CellLabel
-	op continuation : -> CellLabel
-	op stackCurrentFunction : -> CellLabel
-	op stackCurrentProgramLoc : -> CellLabel
-	op currentProgramLoc : -> CellLabel 
-	op structs : -> CellLabel
-	
-	ops gotoMap gotoCalculation currentFunction computation : -> CellLabel
-	ops currentTranslationUnit calculateGotoMap nestingDepthGoto blockHistoryGoto declarationStack : -> CellLabel
-	ops computationTail loopStackGoto externalLocations internalLocations : -> CellLabel
-	ops blockHistory shouldInit nextSharedLoc preLinkage declarationOrder declarations preTypes : -> CellLabel
-	ops nextLoc localVariables externalDefinitions internalDefinitions : -> CellLabel
-	ops localAddresses incompleteLength genv env control savedInitialization typedBody currentObject currentSubObject callStack functionTranslationUnits translationUnits gtypes functions programText types type freshNat declarationTypeHolder gstructs  : -> CellLabel
-	
+module COMMON-C-CONFIGURATION is
+	including C-SYNTAX
+
+	syntax CellLabel ::= "stackFrame" | "continuation" | "stackCurrentFunction" | "stackCurrentProgramLoc"
 	
 	configuration 
 		<T> 
@@ -25,15 +11,22 @@ kmod COMMON-C-CONFIGURATION is
 			<genv color="lightgray"> .Map </genv>
 			<gtypes color="lightgray"> .Map </gtypes>
 			<gstructs color="lightgray"> .Map </gstructs>
-			<mem color="red"> .Map </mem>
+			<memory color="red" type="Map">
+				<object multiplicity="*">
+					<basePtr type="Key"> 0 </basePtr>
+					<oLength> 0 </oLength>
+					<properties> .Bag </properties>
+					<bytes> .Map </bytes>
+				</object>
+			</memory>
 			<notWritable> .Map </notWritable>
 			<functions color="lightgray"> .Map </functions>
-			<freshNat color="green"> 0 </freshNat>
-			<randNat color="green"> 0 </randNat>
-			<nextThreadId color="green"> 2 </nextThreadId> // 0 is global, 1 is main
+			<freshNat color="black"> 0 </freshNat>
+			<randNat color="black"> 0 </randNat>
+			<nextThreadId color="black"> 2 </nextThreadId> // 0 is global, 1 is main
 			<malloced color="lightgray"> .Map </malloced>
 			<stringLiterals color="lightgray"> .Map </stringLiterals>
-			@latex("\\kBR")
+			<br/>
 			// <staticSemantics multiplicity="?" color="cyan">
 				<leftoverExterns color="cyan"> .Bag </leftoverExterns>
 				<translationUnits color="cyan"> .Bag </translationUnits>
@@ -46,9 +39,9 @@ kmod COMMON-C-CONFIGURATION is
 				<preTypes color="cyan"> .Map </preTypes>
 				<declarations color="cyan"> .Set </declarations>
 			// </staticSemantics>
-			@latex("\\kBR")
+			<br/>
 			<functionTranslationUnits color="lightgray"> .Map </functionTranslationUnits> // map from current tu to (map from id to where function was defined)			
-			<nextSharedLoc color="green"> 0 </nextSharedLoc>
+			<nextSharedLoc color="black"> 0 </nextSharedLoc>
 			<threadInformation color="yellow">
 				<threadStatus color="yellow"> .Map </threadStatus>
 				<joiningMap color="yellow"> .Map </joiningMap>
@@ -57,34 +50,15 @@ kmod COMMON-C-CONFIGURATION is
 			// <openFiles color="lightgray"> .Map </openFiles>
 			<programText color="black"> .Map </programText>
 			<compoundLiteralMap color="lightgray"> .Map </compoundLiteralMap>
-			@latex("\\kBR")
+			<br/>
 			<threads color="yellow">
-
-                        // CUDA BEGIN: Since our CUDA configuration stuff here is
-                        // all about managing threads, it kinda makes sense for
-                        // it to be inside the "threads" block. The grid id will
-                        // be unique for every kernel call.
-                        <nextGid> 1 </nextGid> 
-                        <grids> .Map </grids>
-                        <streams> .Set </streams>
-                        <stream multiplicity="*"> 
-                        <sid> 0 </sid>
-                        <streamContents> .K </streamContents>
-                        </stream>
-                        // CUDA END.
-
 				<thread multiplicity="*" color="yellow">
-
-                              <gid> 0 </gid> // CUDA: grid id.
-                              <bid> 0 </bid> // CUDA: block id.
-                              <tid> 0 </tid> // CUDA: thread id.
-
 					<threadId color="yellow"> 0 </threadId>
-					<nextLoc color="green"> 0 </nextLoc> // should be initialized with a pair (threadId, 0)
+					<nextLoc color="black"> 0 </nextLoc> // should be initialized with a pair (threadId, 0)
 					<buffer color="lightgray"> .List </buffer>
 					<blocked color="lightgray"> false </blocked>
-					<k color="red" multiplicity="?"> .K </k>
-					@latex("\\kBR")
+					<k color="green" multiplicity="?"> .K </k>
+					<br/>
 					<threadLocal>
 						<callStack color="violet"> .List </callStack> // stack of "control" cells
 						<calculateGotoMap color="cyan">
@@ -97,7 +71,7 @@ kmod COMMON-C-CONFIGURATION is
 								<loopStackGoto color="cyan"> .List </loopStackGoto>
 							</gotoCalculation>
 						</calculateGotoMap>
-						@latex("\\kBR")
+						<br/>
 						<control>
 							<finalComputation multiplicity="?" color="lightgray"> .K </finalComputation>
 							<blockStack color="violet"> .List </blockStack> // stack of "local" cells
@@ -121,7 +95,7 @@ kmod COMMON-C-CONFIGURATION is
 								<localVariables color="lightgray"> .List </localVariables> // used to make sure we don't declare a variable twice in the same scope
 								<localAddresses color="lightgray"> .Set </localAddresses> // used to deallocate memory on leaving a block
 							</local>
-							@latex("\\kBR")
+							<br/>
 							<shouldInit color="lightgray"> true </shouldInit> // used to control initialization when gotoing
 							// used to figure initializers
 							<currentObject color="cyan"> .List </currentObject>
@@ -129,7 +103,7 @@ kmod COMMON-C-CONFIGURATION is
 							<incompleteLength color="cyan"> 0 </incompleteLength>
 							<savedInitialization color="cyan"> .K </savedInitialization>
 							<loopStack color="violet"> .List </loopStack>
-							@latex("\\kBR")
+							<br/>
 							<locsWrittenTo color="lightgray"> .Bag </locsWrittenTo>
 							<holds color="yellow"> .Map </holds>
 							<type multiplicity="?" color="cyan"> .K </type> // used for typing expressions
@@ -144,7 +118,7 @@ kmod COMMON-C-CONFIGURATION is
 				</thread>
 			</threads>
 		</T>
-		@latex("\\kBR")
+		<br/>
 		<xmessages color="black"> .K </xmessages>
 		<files color="lightgray">
 			<fileCommands> .K </fileCommands>
@@ -164,11 +138,4 @@ kmod COMMON-C-CONFIGURATION is
 		<resultValue color="red"> .K </resultValue>
 		<errorCell multiplicity="?" color="black"> .K </errorCell>
 	
-	ops files input output resultValue errorCell xmessages : -> CellLabel
-	
-	subsort #Id #Int #String #Float #Bool #Rat < K
-	//subsort #String < Builtins
-	
-	subsort C < K
-	
-endkm
+end module

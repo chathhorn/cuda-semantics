@@ -1,5 +1,7 @@
 load common-c-syntax
+load cuda-syntax
 
-mod C-SYNTAX is
-	including COMMON-C-SYNTAX .
-endm
+module C-SYNTAX is
+      including COMMON-C-SYNTAX
+      including CUDA-SYNTAX
+end module

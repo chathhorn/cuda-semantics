@@ -1,27 +1,21 @@
 load common-c-syntax
 
-kmod CUDA-SYNTAX is
-	including #BOOL
-	including #EXT-BOOL
-	including #NAT
-	including #INT
-	including #RAT
-	including #FLOAT
-	including #STRING
-	including #CONVERSION
-	including #RANDOM
-	including #ID
-	including K
-      including COMMON-C-SYNTAX 
-	
-      sort CudaSpecifier
-      subsort CudaSpecifier < C
+module CUDA-SYNTAX is
+      including COMMON-C-SYNTAX
 
+	syntax C ::= CudaSpecifier
+	
 /* (from cabs.ml)
 and cudaspec =
       CUDA_DEVICE | CUDA_GLOBAL | CUDA_HOST
 */
-      op CudaDevice : -> CudaSpecifier
-      op CudaGlobal : -> CudaSpecifier
-      op CudaHost : -> CudaSpecifier
-endkm
+
+	syntax CudaSpecifier ::= "CudaDevice"
+	syntax CudaSpecifier ::= "CudaGlobal"
+	syntax CudaSpecifier ::= "CudaHost"
+
+      syntax SpecifierElem ::= CudaSpecifier
+
+      // probably should be strict?
+      syntax Expression ::= "CudaSpawn" "(" K "," K ")" [metadata "type-strict=(1)" klabel(CudaSpawn)]
+end module

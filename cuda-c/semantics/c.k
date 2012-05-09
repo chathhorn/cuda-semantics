@@ -1,11 +1,14 @@
 load c-syntax
 load dynamic-c-semantics
 
-kmod C-SEMANTICS is
+load cuda-semantics
+
+module C-SEMANTICS is
 	including DYNAMIC-C-CONFIGURATION
 	including DYNAMIC-C-SEMANTICS
-endkm
+      including CUDA-SEMANTICS
+end module
 
-kmod C is 
+module C is 
 	including C-SEMANTICS 
-endkm
+end module
