@@ -13,22 +13,22 @@ Each program may use additional identifiers, which need to be declared either
 automatically (when one uses an external parser) or manually
 (when one writes the program). */
 
-  syntax #Id ::= "main"
+  syntax Id ::= "main"
 
 /*@ \subsection{declarations}
 There are two types of declarations: for variables (including arrays) and
 for functions. */
 
-  syntax Ids ::= List{#Id,","} [prec(70) strict]
+  syntax Ids ::= List{Id,","} [prec(70) strict]
   syntax Exps ::= List{Exp,","}
 
   syntax Decl ::= "int" Exps ";"
                 // CUDA: host function, callable from host.
-                | "host" #Id "(" Ids ")" Stmt
+                | "host" Id "(" Ids ")" Stmt
                 // CUDA: device function, callable from host.
-                | "global" #Id "(" Ids ")" Stmt
+                | "global" Id "(" Ids ")" Stmt
                 // CUDA: device function, callable from device.
-                | "device" #Id "(" Ids ")" Stmt
+                | "device" Id "(" Ids ")" Stmt
 
 /*@ \subsection{Expressions}
 The expression constructs below are standard.  Increment (\texttt{++}) takes
@@ -42,7 +42,7 @@ Exceptions are the increment (since its first argument gets updated, so it
 cannot be evaluated) and the assignment which is only strict in its second
 argument (for the same reason as the increment). */
 
-  syntax Exp ::= #Int | #Bool | #String | #Id
+  syntax Exp ::= Int | Bool | String | Id
                | "++" Exp              [prec(0)]
                | Exp "+" Exp           [strict prec(33) gather(E e)]
                | Exp "-" Exp           [strict prec(33) gather(E e)]
@@ -83,7 +83,7 @@ argument (for the same reason as the increment). */
 
 
 // Memory allocation and pointers
-  syntax Exp ::= "&" #Id
+  syntax Exp ::= "&" Id
                | "*" Exp       [strict]
                | "malloc" "(" Exp ")" [strict]
                | "free" "(" Exp ")" [strict]
@@ -130,7 +130,7 @@ declared alone and is initialized. */
   macro if(E:Exp) S:Stmt = if(E) S else {}
   macro for(E1:Exp; E2:Exp; E3:Exp) S:Stmt = {E1; while(E2) {S E3;}}
   macro int E1:Exp, E2:Exp, Es:Exps; = int E1; int E2, Es;
-  macro int X:#Id = E; = int X; X = E;
+  macro int X:Id = E; = int X; X = E;
 end module
 
 module CUD
@@ -162,8 +162,8 @@ because each function is executed in the fixed global environment and
 function definitions cannot be nested).  Like in IMP and other
 languages, we finally tell the tool that values are \K results. */
 
-  syntax Val ::= #Int | #Bool | #String
-               | "arrayRef" "(" #Nat "," #Nat ")"
+  syntax Val ::= Int | Bool | String
+               | "arrayRef" "(" Nat "," Nat ")"
                | "hlambda" "(" Ids "," Stmt ")"
                    [latex("\lambda{#1}\,.\,{#2}")]
   syntax Vals ::= List{Val,","}
@@ -291,17 +291,18 @@ soon allow instead a side-condition of the form ``where $L$ fresh''.} */
 
   syntax K ::= "undefined"  [latex("\bot")]
 
-  rule <k> int X:#Id; => . ...</k>
-       <env> Env:Map => Env[L:#Nat/X] </env>
+  rule <k> int X:Id; => . ...</k>
+       <env> Env:Map => Env[L:Nat/X] </env>
        <store>... . => L|->undefined ...</store>
-       <nextLoc> L => L +Nat 1 </nextLoc>
+       <nextLoc> L => L +Int 1 </nextLoc>
        <gid> 0 </gid>
 
-  rule <k> int X:#Id; => . ...</k>
-       <env> Env:Map => Env[L:#Nat/X] </env>
+  rule <k> int X:Id; => . ...</k>
+       <env> Env:Map => Env[L:Nat/X] </env>
        <devStore>... . => L|->undefined ...</devStore>
-       <nextLoc> L => L +Nat 1 </nextLoc>
-       <gid> sNat GId:#Nat </gid>
+       <nextLoc> L => L +Int 1 </nextLoc>
+       <gid> GId:Nat </gid>
+       when GId >Int 0
 
 
 /*@ \subsection{Array declaration}
@@ -318,19 +319,20 @@ of array declarations can be arbitrary expressions, this virtually
 means that we can dynamically allocate memory in SIMPLE by means of
 array declarations. */
 
-  rule <k> int X[N:#Nat]; => . ...</k>
+  rule <k> int X[N:Nat]; => . ...</k>
        <env> Env => Env[L/X] </env>
-       <store>... . => L |-> arrayRef(L +Nat 1, N)
-                       L +Nat 1 .. L +Nat N |-> undefined ...</store>
-       <nextLoc> L => L +Nat 1 +Nat N </nextLoc>
+       <store>... . => L |-> arrayRef(L +Int 1, N)
+                       L +Int 1 .. L +Int N |-> undefined ...</store>
+       <nextLoc> L => L +Int 1 +Int N </nextLoc>
        <gid> 0 </gid>
 
-  rule <k> int X[N:#Nat]; => . ...</k>
+  rule <k> int X[N:Nat]; => . ...</k>
        <env> Env => Env[L/X] </env>
-       <devStore>... . => L |-> arrayRef(L +Nat 1, N)
-                       L +Nat 1 .. L +Nat N |-> undefined ...</devStore>
-       <nextLoc> L => L +Nat 1 +Nat N </nextLoc>
-       <gid> sNat GId:#Nat </gid>
+       <devStore>... . => L |-> arrayRef(L +Int 1, N)
+                       L +Int 1 .. L +Int N |-> undefined ...</devStore>
+       <nextLoc> L => L +Int 1 +Int N </nextLoc>
+       <gid> GId:Nat </gid>
+       when GId >Int 0
 
 /*@ SIMPLE allows multi-dimensional arrays.  For semantic simplicity, we
 desugar them all into uni-dimensional arrays by code transformation.
@@ -349,7 +351,7 @@ inside the loop body with fewer dimensions.  The second variable,
 \texttt{\$2}, iterates through and initializes each element of the current
 dimension: */
 
-  syntax #Id ::= "$1" | "$2"
+  syntax Id ::= "$1" | "$2"
   rule int X[N1,N2,Vs:Vals]; =>
        int X[N1];
        {
@@ -390,25 +392,25 @@ global variable before declaring a local function).  The type checker of
 SIMPLE, also defined in \K (see simple/typed/static),
 discards programs which do not respect this requirement. */
 
-  rule <k> host F:#Id(Xs:Ids) S:K => . ...</k>
+  rule <k> host F:Id(Xs:Ids) S:K => . ...</k>
        <env> Env => Env[L/F] </env>
        <store>... . => L|->hlambda(Xs,S) ...</store>
-       <nextLoc> L => L +Nat 1 </nextLoc>
+       <nextLoc> L => L +Int 1 </nextLoc>
 
 /*@ A CUDA function meant to execute on the GPU. */
 
   syntax Val ::= "glambda" "(" Ids "," Stmt ")"
-  rule <k> global F:#Id(Xs:Ids) S:K => . ...</k>
+  rule <k> global F:Id(Xs:Ids) S:K => . ...</k>
        <env> Env => Env[L/F] </env>
        <store>... . => L|->glambda(Xs,S) ...</store>
        <devStore>... . => L|->glambda(Xs,S) ...</devStore>
-       <nextLoc> L => L +Nat 1 </nextLoc>
+       <nextLoc> L => L +Int 1 </nextLoc>
 
   syntax Val ::= "dlambda" "(" Ids "," Stmt ")"
-  rule <k> device F:#Id(Xs:Ids) S:K => . ...</k>
+  rule <k> device F:Id(Xs:Ids) S:K => . ...</k>
        <env> Env => Env[L/F] </env>
        <devStore>... . => L|->dlambda(Xs,S) ...</devStore>
-       <nextLoc> L => L +Nat 1 </nextLoc>
+       <nextLoc> L => L +Int 1 </nextLoc>
 
 /*@ When we are done with the first pass (pre-processing), the computation
 cell \textsf{k} contains only the token \texttt{execute} (see the module
@@ -450,7 +452,9 @@ $L$ is mapped to some value $V$ in the store, then rewrite $X$ by $V$: */
   rule <k> X => K:K ...</k>
        <env>...X|->L...</env>
        <devStore>...L|->K...</devStore>
-       <gid>sNat GId:#Nat</gid>     [transition]
+       <gid>GId:Nat</gid>     
+       when GId >Int 0
+       [transition]
 
 /*@ Note that this excludes reading $\bot$, as $\bot$ is not a value. */
 
@@ -464,34 +468,36 @@ For now, all we need to know is that it takes an expression and evaluates
 to a location value, also introduced below with the auxiliary operations. */
 
   context ++(HOLE => lvalue(HOLE))
-  rule <k> ++loc(L) => I:#Int +Int 1 ...</k>
+  rule <k> ++loc(L) => I:Int +Int 1 ...</k>
        <store>... L |-> (I => I +Int 1) ...</store>  
        <gid>0</gid>     [transition]
-  rule <k> ++loc(L) => I:#Int +Int 1 ...</k>
+  rule <k> ++loc(L) => I:Int +Int 1 ...</k>
        <devStore>... L |-> (I => I +Int 1) ...</devStore>  
-       <gid>sNat GId:#Nat</gid>     [transition]
+       <gid>GId:Nat</gid>
+       when GId >Int 0
+       [transition]
 
 /*@ \subsection{Arithmetic operators}
 There is nothing special about the following rules.  They rewrite the
 language constructs to their library counterparts when their arguments
 become values of expected sorts: */
 
-  rule I1:#Int + I2:#Int => I1 +Int I2
-  rule Str1:#String + Str2:#String => Str1 +String Str2
+  rule I1:Int + I2:Int => I1 +Int I2
+  rule Str1:String + Str2:String => Str1 +String Str2
   rule _-_(I1,I2) => _-Int_(I1,I2)
   rule _*_(I1,I2) => I1 *Int I2 
   rule I1 / I2 => I1 /Int I2 when I2 =/=Bool 0
   rule I1 % I2 => I1 %Int I2 when I2 =/=Bool 0
-  rule - I => -Int I
+  rule - I => 0 -Int I
   rule I1 < I2 => I1 <Int I2
   rule I1 <= I2 => I1 <=Int I2
   rule I1 > I2 => I1 >Int I2
   rule I1 >= I2 => I1 >=Int I2
   rule V1:Val == V2:Val => V1 ==Bool V2
   rule V1 != V2 => V1 =/=Bool V2
-  rule B1:#Bool && B2:#Bool => B1 andBool B2
+  rule B1:Bool && B2:Bool => B1 andBool B2
   rule B1 || B2 => B1 orBool B2
-  rule !(B:#Bool) => notBool(B)
+  rule !(B:Bool) => notBool(B)
   // Don't seem to work as intended.
   //rule !(0) => 1
   //rule !(I1) => 0 when I1 =/=Bool 0
@@ -510,19 +516,21 @@ anonymous variable in \K matching any subterm (like in Prolog); informally,
 The semantics of the \texttt{lookup} operation is straightforward. */
 
   rule V[N1,N2,Vs] => V[N1][N2,Vs]  [structural anywhere]
-  rule arrayRef(L,_:#Nat)[N] => lookup(L +Int N)  [structural anywhere]
-  syntax K ::= "lookup" "(" #Nat ")"
+  rule arrayRef(L,_:Nat)[N] => lookup(L +Int N)  [structural anywhere]
+  syntax K ::= "lookup" "(" Nat ")"
   rule <k> lookup(L) => K ...</k> 
        <store>...L|->K...</store>
        <gid>0</gid>  [transition]
   rule <k> lookup(L) => K ...</k> 
        <devStore>...L|->K...</devStore>
-       <gid>sNat GId:#Nat </gid> [transition]
+       <gid>GId:Nat </gid> 
+       when GId >Int 0
+       [transition]
 /*@ \subsection{Size of an array}
 The size of the array is stored in the array reference value, and the
 \texttt{sizeOf} construct was declared strict, so: */
 
-  rule sizeOf(arrayRef(_:#Nat,N)) => N
+  rule sizeOf(arrayRef(_:Nat,N)) => N
 
 /*@ \subsection{Function call}
 Function application was strict in both its arguments, so we can
@@ -567,8 +575,8 @@ nulary \texttt{return;} statements. */
        <fstack> . => ListItem(c(Env,K)) ...</fstack>
        <env> Env => GEnv </env>
        <genv> GEnv:Map </genv>
-       <gid> GId:#Nat </gid>
-       when GId >Nat 0
+       <gid> GId:Nat </gid>
+       when GId >Int 0
 
   rule <k> return(V:Val); ~> _ => V ~> K </k>
        <fstack> ListItem(c(Env,K)) => . ...</fstack>
@@ -585,14 +593,14 @@ environment and writing the value to that location in the store. */
   rule <k> bindto((X,Xs => Xs),(V,Vs:Vals => Vs)) ...</k>
        <env> Env => Env[L/X] </env>
        <store>... . => L |-> V ...</store>
-       <nextLoc> L => L +Nat 1 </nextLoc>
+       <nextLoc> L => L +Int 1 </nextLoc>
        <gid>0</gid> // Host version.
   rule <k> bindto((X,Xs => Xs),(V,Vs:Vals => Vs)) ...</k>
        <env> Env => Env[L/X] </env>
        <devStore>... . => L |-> V ...</devStore>
-       <nextLoc> L => L +Nat 1 </nextLoc>
-       <gid>GId:#Nat</gid> // Device version.
-       when GId >Nat 0
+       <nextLoc> L => L +Int 1 </nextLoc>
+       <gid>GId:Nat</gid> // Device version.
+       when GId >Int 0
   rule <k> bindto(.Ids,.Exps) => . ...</k>  [structural]
 
 /*@ \subsection{Read}
@@ -620,7 +628,9 @@ that \texttt{lvalue(...)} eventually evaluates to a location value
        <gid> 0 </gid> [transition]
   rule <k> loc(L)=V => V ...</k>
        <devStore>... L|->(_=>V) ...</devStore> 
-       <gid> sNat GId:#Nat </gid> [transition]
+       <gid> GId:Nat </gid> 
+       when GId >Int 0
+       [transition]
 
 /*@ \section{Statements}
 We next define the \K semantics of statements, also in the order their syntax
@@ -742,7 +752,7 @@ its evaluated arguments to the output buffer, and discard the residual
   rule <k> print(V,Vs => Vs); ...</k>
        <out>... . => ListItem(V) </out>
        <gid> 0 </gid>  [transition]
-//  rule <thread>... <gid> GId:#Nat </gid> <tid> TId:#Nat </tid> <bid> BId:#Nat </bid> <k> print(V,Vs => Vs); ...</k> ...</thread>
+//  rule <thread>... <gid> GId:Nat </gid> <tid> TId:Nat </tid> <bid> BId:Nat </bid> <k> print(V,Vs => Vs); ...</k> ...</thread>
 //       <out>... (. => ListItem(GId, BId, TId, V)) </out>  [transition]
   rule print(.Vals); => .                [structural]
 
@@ -763,29 +773,29 @@ In this simplified version, {\tt grid\_dim}, {\tt block\_dim} and {\tt stream} a
 numbers (nats) and we ignore shared.*/
 
   // stream, nblocks, threads per block, nshared, free vars, to-bind vals, function body.
-  syntax K ::= "culaunchkernel" "(" #Nat "," #Nat "," #Nat "," #Nat "," Ids "," Vals "," Stmt ")"
+  syntax K ::= "culaunchkernel" "(" Nat "," Nat "," Nat "," Nat "," Ids "," Vals "," Stmt ")"
              // grid id, blocks left to spawn, threads left to spawn.
-             | "culaunchthreads" "(" #Nat "," #Nat "," #Nat ")"
+             | "culaunchthreads" "(" Nat "," Nat "," Nat ")"
              // grid id
-             | "cunextgrid" "(" #Nat ")"
+             | "cunextgrid" "(" Nat ")"
              // nblocks, nthreads, nshared, free vars, vals to bind, CUDA function body
-             | "cugrid" "(" #Nat "," #Nat "," #Nat "," Ids "," Vals "," Stmt ")"
+             | "cugrid" "(" Nat "," Nat "," Nat "," Ids "," Vals "," Stmt ")"
              // Location of shared memory in the store.
-             | "cublock" "(" #Nat ")"
-             | "cujoin" "(" #Nat ")"
+             | "cublock" "(" Nat ")"
+             | "cujoin" "(" Nat ")"
 
 /*@ \subsection{Calling a kernel function} */
 
-  rule <k> glambda(Xs:Ids,S:K) <<< NBlocks:#Nat,NThreads:#Nat,NShared:#Nat,Stream:#Nat,.Vals >>> ( Vs:Vals ) => 
+  rule <k> glambda(Xs:Ids,S:K) <<< NBlocks:Nat,NThreads:Nat,NShared:Nat,Stream:Nat,.Vals >>> ( Vs:Vals ) => 
                      culaunchkernel(Stream, NBlocks, NThreads, NShared, Xs, Vs, S) ...</k>
        <gid> 0 </gid>
-  rule <k> glambda(Xs:Ids,S:K) <<< NBlocks:#Nat,NThreads:#Nat,NShared:#Nat,.Vals >>> ( Vs:Vals ) => 
+  rule <k> glambda(Xs:Ids,S:K) <<< NBlocks:Nat,NThreads:Nat,NShared:Nat,.Vals >>> ( Vs:Vals ) => 
                      culaunchkernel(0, NBlocks, NThreads, NShared, Xs, Vs, S) ...</k>
        <gid> 0 </gid>
-  rule <k> glambda(Xs:Ids,S:K) <<< NBlocks:#Nat,NThreads:#Nat,.Vals >>> ( Vs:Vals ) => 
+  rule <k> glambda(Xs:Ids,S:K) <<< NBlocks:Nat,NThreads:Nat,.Vals >>> ( Vs:Vals ) => 
                      culaunchkernel(0, NBlocks, NThreads, 0, Xs, Vs, S) ...</k>
        <gid> 0 </gid>
-  rule <k> glambda(Xs:Ids,S:K) <<< NThreads:#Nat,.Vals >>> ( Vs:Vals ) => 
+  rule <k> glambda(Xs:Ids,S:K) <<< NThreads:Nat,.Vals >>> ( Vs:Vals ) => 
                      culaunchkernel(0, 1, NThreads, 0, Xs, Vs, S) ...</k>
        <gid> 0 </gid>
 
@@ -794,14 +804,14 @@ numbers (nats) and we ignore shared.*/
 
 /*@ \subsection{Launching CUDA threads} */
 
-  rule <k> culaunchkernel(SId:#Nat, NBlocks:#Nat, NThreads:#Nat, NShared:#Nat, Xs:Ids, Vs:Vals, S:K) => true ...</k>
-       <nextGid> GId:#Nat => GId +Nat 1 </nextGid> 
+  rule <k> culaunchkernel(SId:Nat, NBlocks:Nat, NThreads:Nat, NShared:Nat, Xs:Ids, Vs:Vals, S:K) => true ...</k>
+       <nextGid> GId:Nat => GId +Int 1 </nextGid> 
        <grids>... (. => GId |-> cugrid(NBlocks, NThreads, NShared, Xs, Vs, S)) ...</grids>
        <stream>... <sid> SId </sid> 
              <streamContents> ... (. => cunextgrid(GId)) </streamContents> 
              ...</stream>
-  rule <k> culaunchkernel(SId:#Nat, NBlocks:#Nat, NThreads:#Nat, NShared:#Nat, Xs:Ids, Vs:Vals, S:K) => true ...</k>
-       <nextGid> GId:#Nat => GId +Nat 1 </nextGid> 
+  rule <k> culaunchkernel(SId:Nat, NBlocks:Nat, NThreads:Nat, NShared:Nat, Xs:Ids, Vs:Vals, S:K) => true ...</k>
+       <nextGid> GId:Nat => GId +Int 1 </nextGid> 
        <grids>... (. => GId |-> cugrid(NBlocks, NThreads, NShared, Xs, Vs, S)) ...</grids>
        <streams> Streams:Set (. => SetItem(SId)) </streams>
        (. => <stream>... <sid> SId </sid> 
@@ -809,22 +819,22 @@ numbers (nats) and we ignore shared.*/
              ...</stream>)
        when notBool(SId in Streams)
 
-  rule <streamContents> cunextgrid(GId:#Nat) =>
-       culaunchthreads(GId, sdNat(NBlocks, 1), sdNat(NThreads, 1)) ...</streamContents>
-       <grids>... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, _, _, _, _) ...</grids>
+  rule <streamContents> cunextgrid(GId:Nat) =>
+       culaunchthreads(GId, NBlocks -Int 1, NThreads -Int 1) ...</streamContents>
+       <grids>... GId |-> cugrid(NBlocks:Nat, NThreads:Nat, _, _, _, _) ...</grids>
 
 /*@ Launch the first thread of a grid. This thread is responsible for clearing
 the stream when it's done executing.*/
 
-  syntax K ::= "sharedLoc" "(" #Nat "," #Nat ")"
+  syntax K ::= "sharedLoc" "(" Nat "," Nat ")"
 
-  rule <streamContents> culaunchthreads(GId:#Nat, 0, 0) => cujoin(GId) ...</streamContents>
-       <grids> ... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, NShared:#Nat, Xs:Ids, Vs:Vals, S:K) ... </grids>
+  rule <streamContents> culaunchthreads(GId:Nat, 0, 0) => cujoin(GId) ...</streamContents>
+       <grids> ... GId |-> cugrid(NBlocks:Nat, NThreads:Nat, NShared:Nat, Xs:Ids, Vs:Vals, S:K) ... </grids>
        <genv> Env:Map </genv>
-       <nextLoc> L:#Nat => L +Nat 1 +Nat NShared </nextLoc>
+       <nextLoc> L:Nat => L +Int 1 +Int NShared </nextLoc>
        <shared>... . => sharedLoc(GId, 0) |-> L ... </shared>
-       <devStore>... . => L |-> arrayRef(L +Nat 1, NShared)
-                       L +Nat 1 .. L +Nat NShared |-> 0 ...</devStore> // zeroing shared memory.
+       <devStore>... . => L |-> arrayRef(L +Int 1, NShared)
+                       L +Int 1 .. L +Int NShared |-> 0 ...</devStore> // zeroing shared memory.
       (. => <thread>... <k> cufillenv ~> S ~> cusyncgrid ~> cujoin(GId) </k> 
             <gid> GId </gid>
             <bid> 0 </bid>
@@ -833,74 +843,74 @@ the stream when it's done executing.*/
 
 /*@ Launch the first thread of a block. */
 
-  rule <streamContents> culaunchthreads(GId:#Nat, (BId:#Nat => sdNat(BId, 1)), (0 => sdNat(NThreads, 1))) ...</streamContents>
-       <grids> ... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, NShared:#Nat, Xs:Ids, Vs:Vals, S:K) ... </grids>
+  rule <streamContents> culaunchthreads(GId:Nat, (BId:Nat => BId -Int 1), (0 => NThreads -Int 1)) ...</streamContents>
+       <grids> ... GId |-> cugrid(NBlocks:Nat, NThreads:Nat, NShared:Nat, Xs:Ids, Vs:Vals, S:K) ... </grids>
        <genv> Env:Map </genv>
-       <nextLoc> L:#Nat => L +Nat 1 +Nat NShared </nextLoc>
+       <nextLoc> L:Nat => L +Int 1 +Int NShared </nextLoc>
        <shared>... . => sharedLoc(GId, BId) |-> L ... </shared>
-       <devStore>... . => L |-> arrayRef(L +Nat 1, NShared)
-                       L +Nat 1 .. L +Nat NShared |-> 0 ...</devStore> // zeroing shared memory.
+       <devStore>... . => L |-> arrayRef(L +Int 1, NShared)
+                       L +Int 1 .. L +Int NShared |-> 0 ...</devStore> // zeroing shared memory.
       (. => <thread>... <k> cufillenv ~> S ~> cusyncgrid </k> 
             <gid> GId </gid>
             <bid> BId </bid>
             <tid> 0 </tid> 
             <env> Env </env> ...</thread>)
-       when BId >Nat 0
+       when BId >Int 0
 
 /*@ Launch the other threads. */
 
-  rule <streamContents> culaunchthreads(GId:#Nat, BId:#Nat, (TId:#Nat => sdNat(TId, 1))) ...</streamContents>
-       <grids> ... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, NShared:#Nat, Xs:Ids, Vs:Vals, S:K) ... </grids>
+  rule <streamContents> culaunchthreads(GId:Nat, BId:Nat, (TId:Nat => TId -Int 1)) ...</streamContents>
+       <grids> ... GId |-> cugrid(NBlocks:Nat, NThreads:Nat, NShared:Nat, Xs:Ids, Vs:Vals, S:K) ... </grids>
        <genv> Env:Map </genv>
       (. => <thread>... <k> cufillenv ~> S ~> cusyncgrid </k> 
             <gid> GId </gid>
             <bid> BId </bid>
             <tid> TId </tid> 
             <env> Env </env> ...</thread>)
-       when TId >Nat 0
+       when TId >Int 0
 
   syntax K ::= "cufillenv"
-  rule <gid> GId:#Nat </gid>
-       <bid> BId:#Nat </bid>
-       <tid> TId:#Nat </tid> 
-       <grids> ... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, _, Xs:Ids, Vs:Vals, S:K) ... </grids>
-       <shared> ... sharedLoc(GId, BId) |-> L:#Nat ... </shared>
-       <k> cufillenv => bindto((#id "blockIdx", #id "threadIdx", #id "gridDim", #id "blockDim", Xs), (BId, TId, NBlocks, NThreads, Vs)) ... </k>
-      <env> Env => Env[L/#id "shared"] </env>
+  rule <gid> GId:Nat </gid>
+       <bid> BId:Nat </bid>
+       <tid> TId:Nat </tid> 
+       <grids> ... GId |-> cugrid(NBlocks:Nat, NThreads:Nat, _, Xs:Ids, Vs:Vals, S:K) ... </grids>
+       <shared> ... sharedLoc(GId, BId) |-> L:Nat ... </shared>
+       <k> cufillenv => bindto(("blockIdx", "threadIdx", "gridDim", "blockDim", Xs), (BId, TId, NBlocks, NThreads, Vs)) ... </k>
+      <env> Env => Env[L/"shared"] </env>
 
 /*@ Clear the stream so the next grid can execute. */
 
-  rule <streamContents> cujoin(GId:#Nat) => . ...</streamContents>
+  rule <streamContents> cujoin(GId:Nat) => . ...</streamContents>
        <k> cujoin(GId) => . ...</k>
   
 /*@ \subsection{Block-level synchronization} */
 
   //                     token, grid id, block id, this id, total ids
-  syntax K ::= "cusync" "(" #Nat "," #Nat "," #Nat "," #Nat "," #Nat ")"
+  syntax K ::= "cusync" "(" Nat "," Nat "," Nat "," Nat "," Nat ")"
 
 /*@ Start the token at thread 0. */
 
-  rule <grids>... GId |-> cugrid(_, NThreads:#Nat, _, _, _, _) ...</grids>
-       <thread>... <tid> 0 </tid> <gid> GId:#Nat </gid> <bid> BId:#Nat </bid> 
+  rule <grids>... GId |-> cugrid(_, NThreads:Nat, _, _, _, _) ...</grids>
+       <thread>... <tid> 0 </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid> 
        <k> syncthreads() => cusync(1, GId, BId, 0, NThreads) ...</k> ...</thread>
-  rule <grids>... GId |-> cugrid(_, NThreads:#Nat, _, _, _, _) ...</grids>
-       <thread>... <tid> TId:#Nat </tid> <gid> GId:#Nat </gid> <bid> BId:#Nat </bid>
+  rule <grids>... GId |-> cugrid(_, NThreads:Nat, _, _, _, _) ...</grids>
+       <thread>... <tid> TId:Nat </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid>
        <k> syncthreads() => cusync(0, GId, BId, TId, NThreads) ...</k> ...</thread>
-       when TId >Nat 0
+       when TId >Int 0
 
 /*@ Pass the token up. */
 
-  rule <k> cusync(1 => 0, GId:#Nat, BId:#Nat, TId:#Nat, NThreads:#Nat) ...</k>
-       <k> cusync(0 => 1, GId, BId, sNat TId, NThreads) ...</k>
+  rule <k> cusync(1 => 0, GId:Nat, BId:Nat, TId:Nat, NThreads:Nat) ...</k>
+       <k> cusync(0 => 1, GId, BId, TId +Int 1, NThreads) ...</k>
 
 /*@ Pivot. */
 
-  rule <k> cusync(1 => 2, _, _, TId:#Nat, sNat TId) ...</k> 
+  rule <k> cusync(1 => 2, _, _, TId:Nat, TId +Int 1) ...</k> 
 
 /*@ Pass it back down. */
 
-  rule <k> cusync(2, GId:#Nat, BId:#Nat, sNat TId, NThreads:#Nat) => true ...</k>
-       <k> cusync(0 => 2, GId, BId, TId:#Nat, NThreads) ...</k>
+  rule <k> cusync(2, GId:Nat, BId:Nat, TId:Nat, NThreads:Nat) => true ...</k>
+       <k> cusync(0 => 2, GId, BId, TId -Int 1, NThreads) ...</k>
   rule <k> cusync(2, _, _, 0, _) => true ...</k> 
   
 /*@ \subsection{Grid-level synchronization} 
@@ -911,13 +921,13 @@ blocks in the grid (the only time a clash would be possible), then NThreads
 will be different for the grid-level and block-level sync.*/
 
   syntax K ::= "cusyncgrid"
-  rule <grids>... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, _, _, _, _) ...</grids>
-       <thread>... <bid> 0 </bid> <tid> 0 </tid> <gid> GId:#Nat </gid>
-       <k> cusyncgrid => cusync(1, GId, 0, 0, NThreads *Nat NBlocks); ...</k> ...</thread>
-  rule <grids>... GId |-> cugrid(NBlocks:#Nat, NThreads:#Nat, _, _, _, _) ...</grids>
-       <thread>... <bid> BId:#Nat </bid> <tid> TId:#Nat </tid> <gid> GId:#Nat </gid>
-       <k> cusyncgrid => cusync(0, GId, 0, (NThreads *Nat BId) +Nat TId, NThreads *Nat NBlocks); ...</k> ...</thread>
-       when BId >Nat 0 orBool TId >Nat 0
+  rule <grids>... GId |-> cugrid(NBlocks:Nat, NThreads:Nat, _, _, _, _) ...</grids>
+       <thread>... <bid> 0 </bid> <tid> 0 </tid> <gid> GId:Nat </gid>
+       <k> cusyncgrid => cusync(1, GId, 0, 0, NThreads *Int NBlocks); ...</k> ...</thread>
+  rule <grids>... GId |-> cugrid(NBlocks:Nat, NThreads:Nat, _, _, _, _) ...</grids>
+       <thread>... <bid> BId:Nat </bid> <tid> TId:Nat </tid> <gid> GId:Nat </gid>
+       <k> cusyncgrid => cusync(0, GId, 0, (NThreads *Int BId) +Int TId, NThreads *Int NBlocks); ...</k> ...</thread>
+       when BId >Int 0 orBool TId >Int 0
 
 /*@ \subsection{Clean up completed threads} */
 
@@ -930,79 +940,79 @@ will be different for the grid-level and block-level sync.*/
        <streams> .Set </streams>
 
 /*@ Stream synchronization. */
-  rule <k> cudaStreamSynchronize(SId:#Nat) => true ... </k>
+  rule <k> cudaStreamSynchronize(SId:Nat) => true ... </k>
        <streams> Streams:Set </streams>
        when notBool(SId in Streams)
 
 /*@ Remove defunct streams. */
-  rule (<stream> <sid>SId:#Nat</sid> 
+  rule (<stream> <sid>SId:Nat</sid> 
         <streamContents> .K </streamContents> </stream> => .)
        <streams> ... (SetItem(SId)=>.) ...</streams>
 
 /*@ \subsection{Device memory allocation} */
-   rule <k>cudaMalloc(DP:#Nat, N1:#Nat) => true<_/k> 
-        <devPtr>. => N2|->N1<_/devPtr>
-        <devStore>... (. => N2..N1 +Nat N2 |-> 0) ...</devStore> 
+   rule <k>cudaMalloc(DP:Nat, N1:Nat) => true ...</k> 
+        <devPtr>. => N2|->N1 ...</devPtr>
+        <devStore>... (. => N2..N1 +Int N2 |-> 0) ...</devStore> 
         <store>... (DP|->(_=>N2)) ...</store> 
-        <nextLoc>N2 => N2 +Nat 1 +Nat N1</nextLoc>
+        <nextLoc>N2 => N2 +Int 1 +Int N1</nextLoc>
         <gid>0</gid> // Host only.
-   rule <k>cudaFree(N2) => true<_/k> 
-        <devPtr>N2|->N1 => .<_/devPtr>
-        <devStore>Store:Map => Store[undefined/N2..N1 +Nat N2]</devStore>
+   rule <k>cudaFree(N2) => true ...</k> 
+        <devPtr>... N2|->N1 => . ...</devPtr>
+        <devStore>Store:Map => Store[undefined/N2..N1 +Int N2]</devStore>
         <gid>0</gid> // Host only.
    /*@ Pointer dereference on device. */
-   rule <k>*N => V<_/k> 
-        <devStore>N|->V<_/devStore>
-        <gid>GId:#Nat</gid>
-        when GId >Nat 0
+   rule <k>*N => V ...</k> 
+        <devStore>... N|->V ...</devStore>
+        <gid>GId:Nat</gid>
+        when GId >Int 0
 
 /*@ \subsection{Host<->device memcpy} */
 
-   syntax K ::= "cumemcpyH2D" "(" #Nat "," #Nat "," #Nat ")"
-   syntax K ::= "cumemcpyD2H" "(" #Nat "," #Nat "," #Nat ")"
-   rule <k>cudaMemcpy(DP:#Nat, SP:#Nat, SZ:#Nat, cudaMemcpyHostToDevice) 
-        => (cudaDeviceSynchronize(); ~> cumemcpyH2D(DP, SP, SZ))<_/k> 
+   syntax K ::= "cumemcpyH2D" "(" Nat "," Nat "," Nat ")"
+   syntax K ::= "cumemcpyD2H" "(" Nat "," Nat "," Nat ")"
+   rule <k>cudaMemcpy(DP:Nat, SP:Nat, SZ:Nat, cudaMemcpyHostToDevice) 
+        => (cudaDeviceSynchronize(); ~> cumemcpyH2D(DP, SP, SZ)) ...</k> 
         <gid>0</gid>
-   rule <k>cudaMemcpy(DP:#Nat, SP:#Nat, SZ:#Nat, cudaMemcpyDeviceToHost) 
-        => (cudaDeviceSynchronize(); ~> cumemcpyD2H(DP, SP, SZ))<_/k> 
+   rule <k>cudaMemcpy(DP:Nat, SP:Nat, SZ:Nat, cudaMemcpyDeviceToHost) 
+        => (cudaDeviceSynchronize(); ~> cumemcpyD2H(DP, SP, SZ)) ...</k> 
         <gid>0</gid>
 
    // The version in k-space.
-   rule <k>cumemcpyH2D((DP:#Nat => sNat DP), (SP:#Nat => sNat SP), (sNat SZ:#Nat => SZ)) <_/k> 
-        <store> SP |-> V <_/store>
-        <devStore> DP|->(_=>V) <_/devStore>
+   rule <k>cumemcpyH2D((DP:Nat => DP +Int 1), (SP:Nat => SP +Int 1), (SZ:Nat => SZ -Int 1)) ...</k> 
+        <store>... SP |-> V ...</store>
+        <devStore>... DP|->(_=>V) ...</devStore>
         <gid>0</gid>
-   rule <k>cumemcpyD2H((DP:#Nat => sNat DP), (SP:#Nat => sNat SP), (sNat SZ:#Nat => SZ)) <_/k> 
-        <devStore> SP|->V <_/devStore>
-        <store> DP|->(_=>V) <_/store>
+   rule <k>cumemcpyD2H((DP:Nat => DP +Int 1), (SP:Nat => SP +Int 1), (SZ:Nat => SZ -Int 1)) ...</k> 
+        <devStore>... SP|->V ...</devStore>
+        <store>... DP|->(_=>V) ...</store>
         <gid>0</gid>
-   rule <k>cumemcpyH2D(_, _, 0) => true <_/k> 
-   rule <k>cumemcpyD2H(_, _, 0) => true <_/k> 
+   rule <k>cumemcpyH2D(_, _, 0) => true ...</k> 
+   rule <k>cumemcpyD2H(_, _, 0) => true ...</k> 
 
    // In a stream.
-   rule <streamContents>cumemcpyH2D((DP:#Nat => sNat DP), (SP:#Nat => sNat SP), (sNat SZ:#Nat => SZ)) ...</streamContents> 
-        <store> SP |-> V <_/store>
-        <devStore> DP|->(_=>V) <_/devStore>
-   rule <streamContents>cumemcpyD2H((DP:#Nat => sNat DP), (SP:#Nat => sNat SP), (sNat SZ:#Nat => SZ)) ...</streamContents> 
-        <devStore> SP|->V <_/devStore>
-        <store> DP|->(_=>V) <_/store>
+   rule <streamContents>cumemcpyH2D((DP:Nat => DP +Int 1), (SP:Nat => SP +Int 1), (SZ:Nat => SZ -Int 1)) ...</streamContents> 
+        <store>... SP |-> V ...</store>
+        <devStore>... DP|->(_=>V) ...</devStore>
+   rule <streamContents>cumemcpyD2H((DP:Nat => DP +Int 1), (SP:Nat => SP +Int 1), (SZ:Nat => SZ -Int 1)) ...</streamContents> 
+        <devStore>... SP|->V ...</devStore>
+        <store>... DP|->(_=>V) ...</store>
    rule <streamContents>cumemcpyH2D(_, _, 0) => . ...</streamContents> 
    rule <streamContents>cumemcpyD2H(_, _, 0) => . ...</streamContents> 
 
    // Async memcpy.
-   rule <k> cudaMemcpyAsync(DP:#Nat, SP:#Nat, SZ:#Nat, cudaMemcpyHostToDevice, SId:#Nat) => true ...</k>
+   rule <k> cudaMemcpyAsync(DP:Nat, SP:Nat, SZ:Nat, cudaMemcpyHostToDevice, SId:Nat) => true ...</k>
         <stream> <sid>SId</sid> 
         <streamContents> ... (. => cumemcpyH2D(DP, SP, SZ)) </streamContents> </stream>
-   rule <k> cudaMemcpyAsync(DP:#Nat, SP:#Nat, SZ:#Nat, cudaMemcpyDeviceToHost, SId:#Nat) => true ...</k>
+   rule <k> cudaMemcpyAsync(DP:Nat, SP:Nat, SZ:Nat, cudaMemcpyDeviceToHost, SId:Nat) => true ...</k>
         <stream> <sid>SId</sid> 
         <streamContents> ... (. => cumemcpyD2H(DP, SP, SZ)) </streamContents> </stream>
-   rule <k> cudaMemcpyAsync(DP:#Nat, SP:#Nat, SZ:#Nat, cudaMemcpyHostToDevice, SId:#Nat) => true ...</k>
+   rule <k> cudaMemcpyAsync(DP:Nat, SP:Nat, SZ:Nat, cudaMemcpyHostToDevice, SId:Nat) => true ...</k>
         <streams> Streams:Set (. => SetItem(SId)) </streams>
         (. => <stream> <sid> SId </sid> 
               <streamContents> cumemcpyH2D(DP, SP, SZ) </streamContents>
               </stream>)
         when notBool(SId in Streams)
-    rule <k> cudaMemcpyAsync(DP:#Nat, SP:#Nat, SZ:#Nat, cudaMemcpyDeviceToHost, SId:#Nat) => true ...</k>
+    rule <k> cudaMemcpyAsync(DP:Nat, SP:Nat, SZ:Nat, cudaMemcpyDeviceToHost, SId:Nat) => true ...</k>
          <streams> Streams:Set (. => SetItem(SId)) </streams>
          (. => <stream> <sid> SId </sid> 
                <streamContents> cumemcpyD2H(DP, SP, SZ) </streamContents>
@@ -1012,21 +1022,21 @@ will be different for the grid-level and block-level sync.*/
 ----------------------------------------------
 /*@ \section{Host memory allocation and pointers} */
 ----------------------------------------------
-   rule <k>&X => N<_/k> 
-        <env>X|->N<_/env>
+   rule <k>&X => N ...</k> 
+        <env>... X|->N ...</env>
 
    /*@ Pointer dereference on host. */
-   rule <k>*N => V<_/k> 
-        <store>N|->V<_/store>
+   rule <k>*N => V ...</k> 
+        <store>... N|->V ...</store>
         <gid>0</gid>
-   rule <k>malloc(N1:#Nat) => N2:#Nat<_/k> 
-        <ptr>. => N2|->N1<_/ptr>
-        <store>. => N2..N1 +Nat N2 |-> 0<_/store> 
-        <nextLoc>N2 => N2 +Nat 1 +Nat N1</nextLoc>
+   rule <k>malloc(N1:Nat) => N2:Nat ...</k> 
+        <ptr>. => N2|->N1 ...</ptr>
+        <store>. => (N2..N1 +Int N2 |-> 0) ...</store> 
+        <nextLoc>N2 => N2 +Int 1 +Int N1</nextLoc>
         <gid>0</gid> // Host only.
-   rule <k>free(N2) => true<_/k> 
-        <ptr>N2|->N1 => .<_/ptr>
-        <store>Store:Map => Store[undefined/N2..N1 +Nat N2]</store>
+   rule <k>free(N2) => true ...</k> 
+        <ptr>N2|->N1 => . ...</ptr>
+        <store>Store:Map => Store[undefined/N2..N1 +Int N2]</store>
         <gid>0</gid> // Host only.
 
 ----------------------------------------------
@@ -1054,9 +1064,9 @@ corresponding store lookup operation. */
 
 // For parsing reasons, we prefer to allow lvalue to take a K
   syntax Exp ::= "lvalue" "(" K ")"
-  syntax Val ::= "loc" "(" #Nat ")"
+  syntax Val ::= "loc" "(" Nat ")"
 // Local variable
-  rule <k> lvalue(X) => loc(L:#Nat) ...</k>
+  rule <k> lvalue(X) => loc(L:Nat) ...</k>
        <env>... X|->L ...</env>  [structural]
 // Array element: evaluate the array and its index;
 // then the array lookup rule above applies.
@@ -1073,9 +1083,9 @@ The following operation expands to the list of natural numbers between two
 given numbers.  The first number is expected to be no larger than the second.
 The two rules below are structural, for the same reason as above. */
 
-  syntax List{K} ::= #Nat ".." #Nat
-  define N1:#Nat..N2:#Nat => .List{K}              when N1  >Nat N2  [structural]
-  define N1:#Nat..N2:#Nat => N1 ,, (N1 +Nat 1)..N2 when N1 <=Nat N2  [structural]
+  syntax List{K} ::= Nat ".." Nat
+  define N1:Nat..N2:Nat => .List{K}              when N1  >Int N2  [structural]
+  define N1:Nat..N2:Nat => N1 ,, (N1 +Int 1)..N2 when N1 <=Int N2  [structural]
 
 /*@ The semantics of SIMPLE is now complete. */
 end module
