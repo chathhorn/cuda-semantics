@@ -534,6 +534,8 @@ rule initial =
 |		">>="			{SUP_SUP_EQ}
 |		"<<"			{INF_INF}
 |		">>"			{SUP_SUP}
+|		"<<<"			{INF_INF_INF} (* CUDA *)
+|		">>>"			{SUP_SUP_SUP} (* CUDA *)
 | 		"=="			{EQ_EQ}
 | 		"!="			{EXCLAM_EQ}
 |		"<="			{INF_EQ}

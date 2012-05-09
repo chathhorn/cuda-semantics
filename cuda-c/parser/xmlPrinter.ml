@@ -464,6 +464,7 @@ and printExpression exp =
 		in printInitExpressionForCast initExp castPrinter compoundLiteralPrinter
 		(* A CAST can actually be a constructor expression *)
 	| CALL (exp1, expList) -> wrap ((printExpression exp1) :: (printExpressionList expList) :: []) "Call"
+	| CUDA_SPAWN (exp1, expList) -> wrap ((printExpression exp1) :: (printExpressionList expList) :: []) "CudaSpawn"
 		(* There is a special form of CALL in which the function called is
 		__builtin_va_arg and the second argument is sizeof(T). This 
 		should be printed as just T *)
@@ -689,6 +690,7 @@ and printSpecElem a =
 		| CUDA_GLOBAL -> printCell "CudaGlobal" [] ""
 		| CUDA_HOST -> printCell "CudaHost" [] ""
 		) :: []) "CudaSpecifier"
+      (* CUDA stuff done. *)
 and printAlignasExpression e = 
 	wrap ((printExpression e) :: []) "AlignasExpression"
 and printAlignasType s d =

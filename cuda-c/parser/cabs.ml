@@ -283,6 +283,7 @@ and expression =
        __builtin_va_arg and the second argument is sizeof(T). This 
        should be printed as just T *)
   | CALL of expression * expression list
+  | CUDA_SPAWN of expression * expression list
   | COMMA of expression list
   | CONSTANT of constant
   | PAREN of expression

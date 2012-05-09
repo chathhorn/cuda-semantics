@@ -268,6 +268,7 @@ let transformOffsetOf (speclist, dtype) member =
 
 /* CUDA stuff. */
 %token<Cabs.cabsloc> CUDA_DEVICE CUDA_GLOBAL CUDA_HOST
+%token INF_INF_INF SUP_SUP_SUP
 /* CUDA stuff done. */
 
 %token<Cabs.cabsloc> ALIGNAS ATOMIC COMPLEX GENERIC IMAGINARY NORETURN STATIC_ASSERT THREAD_LOCAL
@@ -504,6 +505,8 @@ postfix_expression:                     /*(* 6.5.2 *)*/
 			{INDEX (fst $1, smooth_expression $2), snd $1}
 |		postfix_expression LPAREN arguments RPAREN
 			{CALL (fst $1, $3), snd $1}
+|		postfix_expression INF_INF_INF arguments SUP_SUP_SUP LPAREN arguments RPAREN
+			{CUDA_SPAWN(CALL(fst $1, $6), $3), snd $1}
 |               BUILTIN_VA_ARG LPAREN expression COMMA type_name RPAREN
                         { let b, d = $5 in
                           CALL (VARIABLE "__builtin_va_arg", 
