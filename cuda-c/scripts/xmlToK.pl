@@ -88,6 +88,8 @@ my %ignoreThese = (
 	'IntLiteral' => 1,
 	'FloatLiteral' => 1,
 	'ForClauseDeclaration' => 1,
+      # CUDA: not sure why I'm doing this exactly...
+	'CudaSpecifier' => 1,
 );
 
 # foreach my $key (keys %labelMap) {
@@ -108,8 +110,9 @@ if ($filename eq ""){
 }
 
 print "---kccMarker\n";
+my $filenameTerm = "$STRING $filename" . paren(KLIST_IDENTITY);
 my @args = ();
-push (@args, "$STRING $filename" . paren(KLIST_IDENTITY));
+push (@args, $filenameTerm);
 
 $reader->nextElement;
 # print STDERR "At " . $reader->name . "\n";
@@ -124,7 +127,7 @@ $reader->nextElement('RawData');
 my $sourceCode = getRawData($reader);
 push (@args, "$STRING $sourceCode" . paren(KLIST_IDENTITY));
 my $tu = paren(join(KLIST_SEPARATOR, @args));
-print "eq TranslationUnitName($filename)(.List`{K`}) = " . nameToLabel('TranslationUnit') . $tu . ".\n";
+print "eq TranslationUnitName($filenameTerm)(.List`{K`}) = " . nameToLabel('TranslationUnit') . $tu . ".\n";
 if ($ltl ne "") {
 	print $ltl;
 }
@@ -170,14 +173,14 @@ sub elementToK {
 		$label = "_::_";
 	} elsif ($label eq 'NewList') {
 		$label = "List";
-		$prefix = '(_`(_`)(kList("wklist_"), ';
+		$prefix = '(_`(_`)(kList("List`{K`}2K_"), ';
 		$suffix = '))';
-	} elsif ($label eq 'Identifier') {
-		$reader->nextElement;
-		my $rawData = getRawData($reader);
-		my $ident = 'Identifier' . paren($rawData);
-		my $id = $ID . paren($ident);
-		return ($inNextState, $id . paren(KLIST_IDENTITY));
+	# } elsif ($label eq 'Identifier') {
+		# $reader->nextElement;
+		# my $rawData = getRawData($reader);
+		# my $ident = 'Identifier' . paren($rawData);
+		# my $id = paren($ident);
+		# return ($inNextState, $id);
 	} elsif ($label eq 'WStringLiteral') {
 		$reader->nextElement;
 		$reader->read;
@@ -268,7 +271,7 @@ sub escapeString {
 sub escapeWString {
 	my ($str) = (@_);
 	my $decoded = decode_base64($str);
-	my $retval = '_`(_`)(kList("wklist_"), (';
+	my $retval = '_`(_`)(kList("List`{K`}2K_"), (';
 	utf8::decode($decoded);
 	my @charArray = split(//, $decoded);
 	for my $c (@charArray) {

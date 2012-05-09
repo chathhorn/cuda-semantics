@@ -88,11 +88,14 @@ if (defined($ENV{'PRINTMAUDE'})) {
 }
 my $iolog_flag = "";
 if (defined($ENV{'IOLOG'})) {
-	$iolog_flag = "--createLogs ";
+	my $fileIOLog = File::Temp->new( TEMPLATE => 'tmp-kcc-iolog-XXXXXXXXXXX', SUFFIX => '.maude', UNLINK => 0 );
+	push(@temporaryFiles, $fileIOLog);
+	$iolog_flag = "--createLogs --logfileName $fileIOLog";
 }
 
 # these are compile time settings and are set by the compile script using this file as a template
 my $IO_SERVER="EXTERN_IO_SERVER";
+my $MAUDE_WRAPPER="EXTERN_MAUDE_WRAPPER";
 # my $IOFLAG="EXTERN_COMPILED_WITH_IO";
 my $SCRIPTS_DIR="EXTERN_SCRIPTS_DIR";
 my $PROGRAM_NAME="EXTERN_IDENTIFIER";
@@ -107,7 +110,7 @@ require $graphScript;
 # print defined($ENV{'TRACEMAUDE'});
 my $plainOutput = (defined($ENV{'PLAIN'}) or defined($ENV{'TRACEMAUDE'})) ? 1 : 0 ;
 # print "plain: $plainOutput\n";
-
+my $isInterp = 1;
 my $stdin="";
 # actual start of script
 if ( -t STDIN ) {
@@ -127,12 +130,14 @@ push(@temporaryFiles, $fileInput);
 my $traceFile;
 if (defined($ENV{'TRACEMAUDE'})) {
 	$traceFile = File::Temp->new( TEMPLATE => 'tmp-kcc-trace-XXXXXXXXXXX', SUFFIX => '.maude', UNLINK => 0 );
+        $isInterp = 0;
 	push(@temporaryFiles, $traceFile);
 }
 
 my $fileMaudeDefinition;
 
 if (defined($ENV{'SEARCH'}) or defined($ENV{'MODELCHECK'})) {
+        $isInterp = 0;
 	$fileMaudeDefinition = catfile($SCRIPTS_DIR, "c-total-nd.maude");
 } else {
 	$fileMaudeDefinition = catfile($SCRIPTS_DIR, "c-total.maude");
@@ -151,10 +156,10 @@ my $commandLineArguments = "";
 for my $arg ($thisFile, @ARGV) {	
 	$commandLineArguments .= "# \"$arg\"(.List{K}),, ";
 }
-my $startTerm = "eval('linked-program(.List{K}), ($commandLineArguments .List{K}), \"\Q$stdin\E\")";
+my $startTerm = "eval('linked-program(.List{K}), ($commandLineArguments .List{K}), # \"\Q$stdin\E\" (.List{K}), # $isInterp(.List{K}))";
 my $evalLine = "erew $startTerm .\n";
 my $searchLine = "search in C-program-linked : $startTerm =>! B:Bag .\n";
-my $modelLine = "red in C-program-linked : modelCheck(state($startTerm), k2model('LTLAnnotation(Id Identifier(\"$ENV{'MODELCHECK'}\")(.List{K}))) ) .\n";
+my $modelLine = "red in C-program-linked : modelCheck(state($startTerm), k2model('LTLAnnotation(Id Identifier(# \"$ENV{'MODELCHECK'}\"(.List{K}))(.List{K}))) ) .\n";
 #my $modelLine = "--- red modelCheck(state($startTerm), k2model('LTLAnnotation(Id Identifier(\"$ENV{'MODELCHECK'}\")(.List{K}))) ) .";
 # $modelLine .= "red k2model('LTLAnnotation(Id Identifier(\"$ENV{'MODELCHECK'}\")(.List{K}))) .\n";
 
@@ -165,7 +170,10 @@ if (defined($ENV{'PROFILE'})) {
 	print $fileCommand "set profile on .\n";
 }
 if (defined($ENV{'DEBUG'})) {
+        $isInterp = 0;
 	print $fileCommand "break select debug .\n";
+	print $fileCommand "break select debug-k .\n";
+	print $fileCommand "break select debug-m .\n";
 	print $fileCommand "set break on .\n";
 }
 if (defined($ENV{'TRACEMAUDE'})) {
@@ -277,7 +285,7 @@ sub runWrapper {
 	$errorFile = File::Temp->new( TEMPLATE => 'tmp-kcc-err-XXXXXXXXXXX', SUFFIX => '.maude', UNLINK => 0 );
 	push(@temporaryFiles, $errorFile);
 
-	my $command = "$IO_SERVER --commandFile $maudeCommand --maudeFile $runner --outputFile $outfile --errorFile $errorFile --moduleName C-program-linked $iolog_flag";
+	my $command = "$MAUDE_WRAPPER --commandFile $maudeCommand --maudeFile $runner --outputFile $outfile --errorFile $errorFile --moduleName C-program-linked $iolog_flag";
 	$childPid = open P, "$command |" or die "Error running \"$command\"!";
 	#print "for $command, pid is $childPid\n";
 	#my @data=<P>;
@@ -313,7 +321,7 @@ sub runWrapper {
 sub runDebugger {
 	my ($command) = (@_);
 	print "Running $command\n";
-	exec($command);
+	exec("$IO_SERVER 7500 & $command ; kill %1");
 }
 
 sub writeToFile {
