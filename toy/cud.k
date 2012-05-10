@@ -486,21 +486,21 @@ become values of expected sorts: */
   rule Str1:String + Str2:String => Str1 +String Str2
   rule _-_(I1,I2) => _-Int_(I1,I2)
   rule _*_(I1,I2) => I1 *Int I2 
-  rule I1 / I2 => I1 /Int I2 when I2 =/=Bool 0
-  rule I1 % I2 => I1 %Int I2 when I2 =/=Bool 0
+  rule I1 / I2 => I1 /Int I2 when I2 =/=Int 0
+  rule I1 % I2 => I1 %Int I2 when I2 =/=Int 0
   rule - I => 0 -Int I
   rule I1 < I2 => I1 <Int I2
   rule I1 <= I2 => I1 <=Int I2
   rule I1 > I2 => I1 >Int I2
   rule I1 >= I2 => I1 >=Int I2
-  rule V1:Val == V2:Val => V1 ==Bool V2
-  rule V1 != V2 => V1 =/=Bool V2
+  rule V1:Val == V2:Val => V1 ==K V2
+  rule V1 != V2 => V1 =/=K V2
   rule B1:Bool && B2:Bool => B1 andBool B2
   rule B1 || B2 => B1 orBool B2
   rule !(B:Bool) => notBool(B)
   // Don't seem to work as intended.
   //rule !(0) => 1
-  //rule !(I1) => 0 when I1 =/=Bool 0
+  //rule !(I1) => 0 when I1 =/=Int 0
 
 
 /*@ \subsection{Array lookup}
@@ -875,8 +875,8 @@ the stream when it's done executing.*/
        <tid> TId:Nat </tid> 
        <grids> ... GId |-> cugrid(NBlocks:Nat, NThreads:Nat, _, Xs:Ids, Vs:Vals, S:K) ... </grids>
        <shared> ... sharedLoc(GId, BId) |-> L:Nat ... </shared>
-       <k> cufillenv => bindto(("blockIdx", "threadIdx", "gridDim", "blockDim", Xs), (BId, TId, NBlocks, NThreads, Vs)) ... </k>
-      <env> Env => Env[L/"shared"] </env>
+       <k> cufillenv => bindto((#id "blockIdx", #id "threadIdx", #id "gridDim", #id "blockDim", Xs), (BId, TId, NBlocks, NThreads, Vs)) ... </k>
+      <env> Env => Env[L/#id "shared"] </env>
 
 /*@ Clear the stream so the next grid can execute. */
 
@@ -901,16 +901,19 @@ the stream when it's done executing.*/
 /*@ Pass the token up. */
 
   rule <k> cusync(1 => 0, GId:Nat, BId:Nat, TId:Nat, NThreads:Nat) ...</k>
-       <k> cusync(0 => 1, GId, BId, TId +Int 1, NThreads) ...</k>
+       <k> cusync(0 => 1, GId, BId, SuccTId:Nat, NThreads) ...</k>
+       when SuccTId ==Int TId +Int 1
 
 /*@ Pivot. */
 
-  rule <k> cusync(1 => 2, _, _, TId:Nat, TId +Int 1) ...</k> 
+  rule <k> cusync(1 => 2, _, _, TId:Nat, NThreads:Nat) ...</k> 
+       when NThreads ==Int TId +Int 1
 
 /*@ Pass it back down. */
 
-  rule <k> cusync(2, GId:Nat, BId:Nat, TId:Nat, NThreads:Nat) => true ...</k>
-       <k> cusync(0 => 2, GId, BId, TId -Int 1, NThreads) ...</k>
+  rule <k> cusync(2, GId:Nat, BId:Nat, SuccTId:Nat, NThreads:Nat) => true ...</k>
+       <k> cusync(0 => 2, GId, BId, TId:Nat, NThreads) ...</k>
+       when SuccTId ==Int TId +Int 1
   rule <k> cusync(2, _, _, 0, _) => true ...</k> 
   
 /*@ \subsection{Grid-level synchronization} 
