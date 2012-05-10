@@ -505,8 +505,12 @@ postfix_expression:                     /*(* 6.5.2 *)*/
 			{INDEX (fst $1, smooth_expression $2), snd $1}
 |		postfix_expression LPAREN arguments RPAREN
 			{CALL (fst $1, $3), snd $1}
-|		postfix_expression INF_INF_INF arguments SUP_SUP_SUP LPAREN arguments RPAREN
-			{CUDA_SPAWN(CALL(fst $1, $6), $3), snd $1}
+|		postfix_expression INF_INF_INF expression COMMA expression SUP_SUP_SUP LPAREN arguments RPAREN
+			{CUDA_SPAWN2(CALL(fst $1, $8), (fst $3), (fst $5)), snd $1}
+|		postfix_expression INF_INF_INF expression COMMA expression COMMA expression SUP_SUP_SUP LPAREN arguments RPAREN
+			{CUDA_SPAWN3(CALL(fst $1, $10), (fst $3), (fst $5), (fst $7)), snd $1}
+|		postfix_expression INF_INF_INF expression COMMA expression COMMA expression COMMA expression SUP_SUP_SUP LPAREN arguments RPAREN
+			{CUDA_SPAWN4(CALL(fst $1, $12), (fst $3), (fst $5), (fst $7), (fst $9)), snd $1}
 |               BUILTIN_VA_ARG LPAREN expression COMMA type_name RPAREN
                         { let b, d = $5 in
                           CALL (VARIABLE "__builtin_va_arg", 
