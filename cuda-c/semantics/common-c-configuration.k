@@ -5,6 +5,19 @@ module COMMON-C-CONFIGURATION is
 	
 	configuration 
 		<T> 
+                  // CUDA: the grid id will be unique for every kernel call.
+                  <nextGid> 1 </nextGid> 
+                  <grids> .Map </grids>
+                  // CUDA: block-level memory.
+                  <shared> .Map </shared>
+                  // CUDA: streams.
+                  <streams> .Set </streams>
+                  <stream multiplicity="*"> 
+                  <sid> 0 </sid>
+                  <streamContents> .K </streamContents>
+                  </stream>
+                  // CUDA done.
+                  
 			// <modelChecking multiplicity="?"> .K </modelChecking>
 			// <busy> .Bag </busy>
 			<gotoMap color="lightgray"> .Map </gotoMap>
@@ -53,6 +66,11 @@ module COMMON-C-CONFIGURATION is
 			<br/>
 			<threads color="yellow">
 				<thread multiplicity="*" color="yellow">
+
+                              <gid> 0 </gid> // CUDA: grid id.
+                              <bid> 0 </bid> // CUDA: block id.
+                              <tid> 0 </tid> // CUDA: thread id.
+
 					<threadId color="yellow"> 0 </threadId>
 					<nextLoc color="black"> 0 </nextLoc> // should be initialized with a pair (threadId, 0)
 					<buffer color="lightgray"> .List </buffer>
