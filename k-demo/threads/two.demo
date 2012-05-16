@@ -10,13 +10,17 @@ function factorial(x) {
 }
 
 function main() {
-      print("a = ");
       var a;
-      a := read();
+      a := 5;
+      print("a = ");
+      print(a);
+      print("\n");
 
-      print("b = ");
       var b;
-      b := read();
+      b := 10;
+      print("b = ");
+      print(b);
+      print("\n");
 
       spawn { 
             var a_fact;
