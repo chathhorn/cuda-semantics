@@ -464,7 +464,9 @@ and printExpression exp =
 		in printInitExpressionForCast initExp castPrinter compoundLiteralPrinter
 		(* A CAST can actually be a constructor expression *)
 	| CALL (exp1, expList) -> wrap ((printExpression exp1) :: (printExpressionList expList) :: []) "Call"
-	| CUDA_SPAWN (exp1, expList) -> wrap ((printExpression exp1) :: (printExpressionList expList) :: []) "CudaSpawn"
+	| CUDA_SPAWN2 (exp1, exp2, exp3) -> wrap ((printExpression exp1) :: (printExpression exp2) :: (printExpression exp3) :: []) "CudaSpawn2"
+	| CUDA_SPAWN3 (exp1, exp2, exp3, exp4) -> wrap ((printExpression exp1) :: (printExpression exp2) :: (printExpression exp3) :: (printExpression exp4) :: []) "CudaSpawn3"
+	| CUDA_SPAWN4 (exp1, exp2, exp3, exp4, exp5) -> wrap ((printExpression exp1) :: (printExpression exp2) :: (printExpression exp3) :: (printExpression exp4) :: (printExpression exp5) :: []) "CudaSpawn4"
 		(* There is a special form of CALL in which the function called is
 		__builtin_va_arg and the second argument is sizeof(T). This 
 		should be printed as just T *)

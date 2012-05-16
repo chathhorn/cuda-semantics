@@ -208,7 +208,8 @@ c-total.maude: check-vars c-compiled.maude $(K_BASE_FILES) $(K_TCP).maude Makefi
 c-total-nd.maude: check-vars c-compiled-nd.maude $(K_BASE_FILES) $(K_TCP).maude Makefile
 	@echo "c-compiled-nd.maude" | perl $(SCRIPTS_DIR)/slurpFrontEnd.pl > $@
 
-semantics: c-total.maude c-total-nd.maude
+#semantics: c-total.maude c-total-nd.maude
+semantics: c-total.maude
 
 fast-nd: c-total.maude
 	@cp c-total.maude c-total-nd.maude

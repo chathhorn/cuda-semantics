@@ -16,4 +16,9 @@ void __syncthreads(void);
 void cudaStreamSynchronize(int stream);
 void cudaDeviceSynchronize(void);
 
+extern int threadIdx;
+extern int blockIdx;
+extern int gridDim;
+extern int blockDim;
+
 #endif
