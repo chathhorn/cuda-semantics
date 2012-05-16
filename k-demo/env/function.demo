@@ -1,0 +1,23 @@
+function factorial(x) {
+      var i;
+      i := x;
+      while i != 1 do {
+            i := i - 1;
+            x := x * i;
+      }
+
+      return x;
+}
+
+function main() {
+      print("n = ");
+      var n;
+      n := read();
+
+      n := factorial(n);
+
+      print("n! = ");
+      print(n);
+      print("\n");
+}
+
