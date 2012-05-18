@@ -147,18 +147,17 @@ module CUDA-SEMANTICS is
       rule < k => finalComputation > cuda-launch-kernel(_, _, 0, _, _) ...</ k => finalComputation > 
            (.Bag => <errorCell> Error("90001", "NThreads zero.") </errorCell>)
 
-      ops cuda-launch-success cuda-sync-success : -> Nat
-      macro cuda-launch-success = tv(1, t(.Set, int))
-      macro cuda-sync-success = tv(1, t(.Set, int))
+      ops cuda-success : -> Nat
+      macro cuda-success = tv(1, t(.Set, int))
 
       // TODO: return value.
-      rule <k> cuda-launch-kernel(FCall:K, NBlocks:Nat, NThreads:Nat, NShared:Nat, SId:Nat) => cuda-launch-success ...</k>
+      rule <k> cuda-launch-kernel(FCall:K, NBlocks:Nat, NThreads:Nat, NShared:Nat, SId:Nat) => cuda-success ...</k>
            <nextGid> GId:Nat => GId +Int 1 </nextGid> 
            <grids>... (. => GId |-> cuda-grid(FCall, NBlocks, NThreads, NShared)) ...</grids>
            <stream>... <sid> SId </sid> 
                  <streamContents> ... (. => cuda-next-grid(GId)) </streamContents> 
                  ...</stream>
-      rule <k> cuda-launch-kernel(FCall:K, NBlocks:Nat, NThreads:Nat, NShared:Nat, SId:Nat) => cuda-launch-success ...</k>
+      rule <k> cuda-launch-kernel(FCall:K, NBlocks:Nat, NThreads:Nat, NShared:Nat, SId:Nat) => cuda-success ...</k>
            <nextGid> GId:Nat => GId +Int 1 </nextGid> 
            <grids>... (. => GId |-> cuda-grid(FCall, NBlocks, NThreads, NShared)) ...</grids>
            <streams> Streams:Set (. => SetItem(SId)) </streams>
@@ -289,10 +288,10 @@ module CUDA-SEMANTICS is
 
       // TODO: return value.
       rule [cuda-syncthreads-passdown]:
-            <k> cuda-sync(2, GId:Nat, BId:Nat, SuccTId:Nat, NThreads:Nat) => cuda-sync-success...</k>
+            <k> cuda-sync(2, GId:Nat, BId:Nat, SuccTId:Nat, NThreads:Nat) => cuda-success...</k>
             <k> cuda-sync(0 => 2, GId, BId, TId:Nat, NThreads) ...</k>
             when SuccTId ==Int TId +Int 1
-      rule <k> cuda-sync(2, _, _, 0, _) => cuda-sync-success ...</k> 
+      rule <k> cuda-sync(2, _, _, 0, _) => cuda-success ...</k> 
 
       /*@ \subsection{Grid-level synchronization} 
       This isn't an operation supported by CUDA, but we need it in this model to make
@@ -318,7 +317,7 @@ module CUDA-SEMANTICS is
       /*@ \subsection{Stream Management} */
 
       /*@ Device synchronization. */
-      rule <k> prepareBuiltin((Identifier("cudaDeviceSynchronize")), _) => cuda-sync-success ...</k>
+      rule <k> prepareBuiltin((Identifier("cudaDeviceSynchronize")), _) => cuda-success ...</k>
             <streams> .Set </streams> // i.e., all streams are empty.
 
       /*@ Stream synchronization. */
@@ -333,6 +332,32 @@ module CUDA-SEMANTICS is
             <streamContents> .K </streamContents> ...</stream> => .)
             <streams> ... (SetItem(SId)=>.) ...</streams>
 
+      syntax BagItem ::= "mdevice"
+
+	rule [cudaMalloc]:
+		<k> prepareBuiltin((Identifier("cudaMalloc")), (ReturnPtrLoc:KResult,,tv(Len:Nat, T:KResult)))
+			=> Computation(*(ReturnPtrLoc) := tv(loc(Base, 0, 0), t(.Set, pointerType(t(.Set, void)))))
+                  ~> cuda-success
+		...</k>
+		<malloced>... .Map => loc(Base, 0, 0) |-> Len:Nat ...</malloced>
+		<freshNat> Fresh:Nat => Fresh:Nat +Int 1 </freshNat>
+		<memory>...
+			(.Bag => <object>...
+				<basePtr> Base:Nat </basePtr>
+				<oLength> Len:Nat </oLength>
+				<properties> mdevice </properties>
+			...</object>)
+		...</memory>
+		where Base = threadId(allocatedDuration) +Int Fresh
+
+      // Just like regular free.
+	rule [cudaFree]:
+		<k> prepareBuiltin((Identifier("cudaFree")), tv(Loc:Nat, t(_, pointerType(_))))
+			=> deleteSizedBlock(Loc:Nat, Len:Nat) 
+			~> skipval
+		...</k>
+		<malloced>... Loc:Nat |-> Len:Nat => .Map ...</malloced>
+		
 end module
 
 
