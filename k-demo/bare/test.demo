@@ -1,0 +1,14 @@
+print("n = ");
+n := read();
+
+i := n;
+while i != 1 do {
+      i := i - 1;
+      n := n * i;
+}
+
+print("n! = ");
+print(n);
+print("\n");
+
+
