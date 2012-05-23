@@ -47,13 +47,10 @@ __host__ int main(int argc, char** argv) {
       }
       printf("\n");
 
-      d_idata = malloc(num_elements * sizeof(int));
-      d_odata = malloc(nruns * sizeof(int));
-      //cudaMalloc(&d_idata, num_elements);
-      //cudaMalloc(&d_odata, nruns);
+      cudaMalloc(&d_idata, num_elements * sizeof(int));
+      cudaMalloc(&d_odata, nruns * sizeof(int));
 
-      memcpy(d_idata, h_data, num_elements * sizeof(int));
-      //cudaMemcpy(d_idata, h_data, num_elements, cudaMemcpyHostToDevice);
+      cudaMemcpy(d_idata, h_data, num_elements * sizeof(int), cudaMemcpyHostToDevice);
 
       printf("Running sum of %d elements\n", num_elements);
 
@@ -63,10 +60,9 @@ __host__ int main(int argc, char** argv) {
       }
       cudaDeviceSynchronize();
 
-      memcpy(h_data, d_odata, nruns * sizeof(int));
-      //cudaMemcpyAsync(h_data, d_odata, nruns, cudaMemcpyDeviceToHost, 1);
+      cudaMemcpyAsync(h_data, d_odata, nruns * sizeof(int), cudaMemcpyDeviceToHost, 1);
 
-      //cudaStreamSynchronize(1);
+      cudaStreamSynchronize(1);
 
       printf("OUTPUT: ");
       for(i = 0; i != nruns; ++i) {
@@ -75,6 +71,6 @@ __host__ int main(int argc, char** argv) {
       printf("\n");
 
       free(h_data);
-      //cudaFree(d_idata);
-      //cudaFree(d_odata);
+      cudaFree(d_idata);
+      cudaFree(d_odata);
 }
