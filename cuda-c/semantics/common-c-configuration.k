@@ -5,16 +5,19 @@ module COMMON-C-CONFIGURATION is
 	
 	configuration 
 		<T> 
+                  // <device multiplicity="*">
+                  //<did> 0 </did> // CUDA: device ID.
+
                   // CUDA: the grid id will be unique for every kernel call.
-                  <nextGid> 1 </nextGid> 
+                  <nextGid> 2 </nextGid> 
                   <grids> .Map </grids>
                   // CUDA: block-level memory.
                   <shared> .Map </shared>
                   // CUDA: streams.
                   <streams> .Set </streams>
                   <stream multiplicity="*"> 
-                  <sid> 0 </sid>
-                  <streamContents> .K </streamContents>
+                        <sid> 0 </sid>
+                        <streamContents> .K </streamContents>
                   </stream>
                   // CUDA done.
                   
@@ -24,6 +27,7 @@ module COMMON-C-CONFIGURATION is
 			<genv color="lightgray"> .Map </genv>
 			<gtypes color="lightgray"> .Map </gtypes>
 			<gstructs color="lightgray"> .Map </gstructs>
+
 			<memory color="red" type="Map">
 				<object multiplicity="*">
 					<basePtr type="Key"> 0 </basePtr>
@@ -135,6 +139,8 @@ module COMMON-C-CONFIGURATION is
 					</threadLocal>
 				</thread>
 			</threads>
+
+                  //</device>
 		</T>
 		<br/>
 		<xmessages color="black"> .K </xmessages>

@@ -210,10 +210,11 @@ module DYNAMIC-SEMANTICS-READING is
 	// context extractBytesFromMem-aux(_, _, (_,, HOLE,, _)) 
 	// this next op should use Nats, but the context doesn't allow it.  See issue 54
 	syntax K ::= "extractBytesFromMem-aux" "(" K "," K "," List{K} ")" [klabel(extractBytesFromMem-aux)] // loc, size in bytes, aux list
-	
+	syntax K ::= "cuda-read-check" "(" K ")"
 	rule
 		<k> extractBytesFromMem(Loc:Nat, Size:Nat) 
-			=> extractBytesFromMem-aux(Loc:Nat, Size:Nat, .List{K}) 
+			=> cuda-read-check(Loc:Nat)
+                  ~> extractBytesFromMem-aux(Loc:Nat, Size:Nat, .List{K}) 
 		...</k>
 		[structural] 
 		
@@ -241,7 +242,6 @@ module DYNAMIC-SEMANTICS-READING is
 		[structural] 
 	
 	// FIXME make sure it's a byte
-	
 	rule [read-byte-fast]:
 		<k> extractByteFromMem(loc(Base:Nat, Offset:Nat, 0))
 			=> assert(notBool (loc(Base:Nat, Offset:Nat, 0) in Locs:Bag), 3)
@@ -394,13 +394,13 @@ module DYNAMIC-SEMANTICS-WRITING is
 	declare calculateNewBytes : Nat K K -> K [strict(3)] 
 	
 	syntax K ::= "write-aux" "(" K "," Value "," K ")" [strict(2) klabel(write-aux)]
+	syntax K ::= "cuda-write-check" "(" K ")"
 	rule write(lv(Dest:Nat, T':KResult), tv(V:List{K}, T:KResult)) 
-		=> write-aux(Dest:Nat, tv(V:List{K}, T:KResult), value(bitSizeofType(T:KResult))) 
+		=> cuda-write-check(Dest:Nat)
+            ~> write-aux(Dest:Nat, tv(V:List{K}, T:KResult), value(bitSizeofType(T:KResult))) 
 		when notBool isConstType(T':KResult)
 		[structural]
 	context write-aux(_, _, value(HOLE))
-	
-	
 	
 	syntax K ::= "write-specific" "(" Nat "," Value "," Nat ")" [klabel(write-specific)]
 	
