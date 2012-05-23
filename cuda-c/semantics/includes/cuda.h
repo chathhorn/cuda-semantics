@@ -2,19 +2,26 @@
 #define _KCC_CUDA_H
 #include <kccSettings.h>
 
-enum {
+typedef enum cudaMemcpyKind {
       cudaMemcpyHostToDevice = 1,
       cudaMemcpyDeviceToHost = 2,
 };
 
-void cudaMalloc(void**, size_t);
-void cudaFree(void*);
-void cudaMemcpy(void* dst, void* src, size_t nbytes, int method);
-void cudaMemcpyAsync(void* dst, void* src, size_t nbytes, int method, int stream);
+typedef enum cudaError {
+      cudaSuccess = 0,
+} cudaError_t;
+
+typedef int cudaStream_t;
+
+cudaError_t cudaMalloc(void** devPtr, size_t size);
+cudaError_t cudaFree(void* devptr);
+cudaError_t cudaMemcpy(void* dst, const void* src, size_t count, enum cudaMemcpyKind kind);
+cudaError_t cudaMemcpyAsync(void* dst, const void* src, size_t count, enum cudaMemcpyKind kind, cudaStream_t stream);
+
+cudaError_t cudaStreamSynchronize(cudaStream_t stream);
+cudaError_t cudaDeviceSynchronize(void);
 
 void __syncthreads(void);
-void cudaStreamSynchronize(int stream);
-void cudaDeviceSynchronize(void);
 
 extern int threadIdx;
 extern int blockIdx;
