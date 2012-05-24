@@ -1,65 +1,5 @@
 load dynamic-c-semantics
-
-module CUDA-TYPING
-      including COMMON-C-TYPING
-
-      rule <k> canonicalizeType-aux(B:Bag (BagItem(T:K) => .Bag), _, _, _, (_ .Bag => BagItem(T:K))) ...</k>
-            when T:K ==K CudaGlobal
-            orBool T:K ==K CudaDevice
-            orBool T:K ==K CudaHost
-            [structural]
-      rule <k> canonicalizeType-aux(.Bag, (T:KResult => t(.Set, qualifiedType(T:KResult, Q:K))), .Bag, .Bag, (_ BagItem(Q:K) => .Bag)) ...</k>
-            when Q:K ==K CudaGlobal
-            orBool Q:K ==K CudaDevice
-            orBool Q:K ==K CudaHost
-            [structural]
-
-   //   rule [ignore-cuda-global]: t(S:Set, qualifiedType(t(S':Set, T:K), CudaGlobal)) 
-   //         => t(S:Set S':Set, T:K) 
-   //         [structural anywhere]
-   //   rule [ignore-cuda-device]: t(S:Set, qualifiedType(t(S':Set, T:K), CudaDevice)) 
-   //         => t(S:Set S':Set, T:K) 
-   //         [structural anywhere]
-      rule [ignore-cuda-host]: t(S:Set, qualifiedType(t(S':Set, T:K), CudaHost)) 
-            => t(S:Set S':Set, T:K) 
-            [structural anywhere]
-
-
-      declare isCudaDeviceType : Type -> Bool
-      declare isCudaGlobalType : Type -> Bool
-
-      define [isCudaDeviceType-true]: isCudaDeviceType(t(_, qualifiedType(_, CudaDevice))) => true 
-      define [isCudaDeviceType-prototype]: isCudaDeviceType(t(_, prototype(T:KResult))) => isCudaDeviceType(T:KResult) 
-      define [isCudaDeviceType-qualified]: isCudaDeviceType(t(_, qualifiedType(T:KResult, Q:K))) => isCudaDeviceType(T:KResult) 
-            when getKLabel(Q:K) =/=KLabel 'CudaDevice
-      define [isCudaDeviceType-false]: isCudaDeviceType(t(_, T:K)) => false
-            when getKLabel(T:K) =/=KLabel 'functionType
-            andBool getKLabel(T:K) =/=KLabel 'qualifiedType
-            andBool getKLabel(T:K) =/=KLabel 'prototype 
-
-      define [isCudaGlobalType-true]: isCudaGlobalType(t(_, qualifiedType(_, CudaGlobal))) => true 
-      define [isCudaGlobalType-prototype]: isCudaGlobalType(t(_, prototype(T:KResult))) => isCudaGlobalType(T:KResult) 
-      define [isCudaGlobalType-qualified]: isCudaGlobalType(t(_, qualifiedType(T:KResult, Q:K))) => isCudaGlobalType(T:KResult) 
-            when getKLabel(Q:K) =/=KLabel 'CudaGlobal
-      define [isCudaGlobalType-false]: isCudaGlobalType(t(_, T:K)) => false
-            when getKLabel(T:K) =/=KLabel 'functionType
-            andBool getKLabel(T:K) =/=KLabel 'qualifiedType
-            andBool getKLabel(T:K) =/=KLabel 'prototype 
-
-    //  define [isCudaHostType-true]: isCudaHostType(t(_, qualifiedType(_, CudaHost))) => true 
-    //  define [isCudaHostType-prototype]: isCudaHostType(t(_, prototype(T:KResult))) => isCudaHostType(T:KResult) 
-    //  define [isCudaHostType-qualified]: isCudaHostType(t(_, qualifiedType(T:KResult, Q:K))) => isCudaHostType(T:KResult) 
-    //        when getKLabel(Q:K) =/=KLabel 'CudaHost
-    //  define [isCudaHostType-false]: isCudaHostType(t(_, T:K)) => false
-    //        when getKLabel(T:K) =/=KLabel 'functionType
-    //        andBool getKLabel(T:K) =/=KLabel 'qualifiedType
-    //        andBool getKLabel(T:K) =/=KLabel 'prototype 
-
-      // Actually seems like this should just be void.
-      rule <type> CudaSpawn2(T:KResult, _, _) => innerType(T) ...</type>
-      rule <type> CudaSpawn3(T:KResult, _, _, _) => innerType(T) ...</type>
-      rule <type> CudaSpawn4(T:KResult, _, _, _, _) => innerType(T) ...</type>
-end module
+load cuda-typing
 
 module CUDA-SEMANTICS is
       including DYNAMIC-C-SEMANTICS
@@ -112,22 +52,6 @@ module CUDA-SEMANTICS is
            (.Bag => <errorCell> Error("90000", "CUDA: Kernel launch with NBlocks zero.") </errorCell>)
       rule < k => finalComputation > cuda-launch-kernel(_, _, 0, _, _) ...</ k => finalComputation > 
            (.Bag => <errorCell> Error("90001", "CUDA: Kernel launch with NThreads zero.") </errorCell>)
-
-      rule [cuda-put-in-existing-stream]:
-           <k> cuda-put-in-stream(Contents:K, SId:Nat) => . ...</k>
-           <stream>... 
-                 <sid> SId </sid> 
-                 <streamContents> ... (. => Contents) </streamContents> 
-            ...</stream>
-           [structural]
-      rule [cuda-put-in-new-stream]:
-           <k> cuda-put-in-stream(Contents:K, SId:Nat) => . ...</k>
-           <streams> Streams:Set (. => SetItem(SId)) </streams>
-           (. => <stream>... <sid> SId </sid> 
-                 <streamContents> Contents </streamContents> 
-            ...</stream>)
-           when notBool(SId in Streams)
-           [structural]
 
       // TODO: return value.
       rule <k> cuda-launch-kernel(FCall:K, NBlocks:Nat, NThreads:Nat, NShared:Nat, SId:Nat) 
@@ -281,29 +205,92 @@ module CUDA-SEMANTICS is
       // Cleanup completed threads. 
       // TODO: probably other stuff needs to be done here (free memory,
       // perhaps?)
-      rule (<thread>... <k>.K</k> ...</thread> => .)
+      // Surely this gets done better elsewhere.
+      //rule (<thread>... <k>.K</k> ...</thread> => .)
 
       /*@ \subsection{Stream Management} */
 
-      /*@ Device synchronization. */
-      syntax K ::= "cuda-device-synchronize"
-      rule <k> prepareBuiltin((Identifier("cudaDeviceSynchronize")), _) => cuda-device-synchronize ...</k>
-      rule <k> cuda-device-synchronize => cuda-success ...</k>
-           <streams> .Set </streams> // i.e., all streams are empty.
+      /*@ Create stream. */
+
+	rule [cudaStreamCreate]:
+		<k> prepareBuiltin((Identifier("cudaStreamCreate")), ReturnPtrLoc:KResult)
+			=> Computation(*(ReturnPtrLoc) := tv(SId:Nat, t(.Set, int)))
+                  ~> cuda-success
+		...</k>
+            <nextSid> SId:Nat => SId +Int 1 </nextSid>
+            <initializedStreams>... (. => SetItem(SId)) ...</initializedStreams>
+
+      /*@ Stream 0 is forever legit. */
+
+      rule <initializedStreams> Streams:Set (. => SetItem(0)) </initializedStreams>
+            when notBool(0 in Streams:Set)
+
+      /*@ Destroy stream. */
+
+	rule [cudaStreamDestory-existing]:
+		<k> prepareBuiltin((Identifier("cudaStreamDestroy")), tv(SId:Nat, _))
+			=> cuda-success
+		...</k>
+            <initializedStreams>... SId => . ...</initializedStreams>
+	rule [cudaStreamDestory-non-existing]:
+		< k => finalComputation > prepareBuiltin((Identifier("cudaStreamDestroy")), tv(SId:Nat, _))
+            ...</ k => finalComputation >
+           (.Bag => <errorCell> Error("90400", "CUDA: Attempting to destroy a non-existing stream.") </errorCell>)
+            <initializedStreams> Streams:Set </initializedStreams>
+            when notBool(SId in Streams)
+
+      rule [cuda-put-in-existing-stream]:
+           <k> cuda-put-in-stream(Contents:K, SId:Nat) => . ...</k>
+           <initializedStreams>... SId:Nat ...</initializedStreams>
+           <stream>... 
+                 <sid> SId </sid> 
+                 <streamContents> ... (. => Contents) </streamContents> 
+            ...</stream>
+           [structural]
+      rule [cuda-put-in-new-stream]:
+           <k> cuda-put-in-stream(Contents:K, SId:Nat) => . ...</k>
+           <initializedStreams> InitializedStreams:Set </initializedStreams>
+           <activeStreams> ActiveStreams:Set (. => SetItem(SId)) </activeStreams>
+           (. => <stream>... <sid> SId </sid> 
+                 <streamContents> Contents </streamContents> 
+            ...</stream>)
+           when SId in InitializedStreams:Set
+           andBool notBool(SId in ActiveStreams:Set)
+           [structural]
+      rule [cuda-put-in-uninitialized-stream]:
+           < k => finalComputation > cuda-put-in-stream(Contents:K, SId:Nat) 
+           ...</ k => finalComputation >
+           (.Bag => <errorCell> Error("90401", "CUDA: Attempting to use an uncreated stream.") </errorCell>)
+           <initializedStreams> Streams:Set </initializedStreams>
+           when notBool(SId in Streams)
 
       /*@ Stream synchronization. */
       // TODO: return value (also argument).
       syntax K ::= "cuda-stream-synchronize" "(" Nat ")"
-      rule <k> prepareBuiltin((Identifier("cudaStreamSynchronize")), tv(SId:Nat, t(_, int))) 
+      rule [cudaStreamSynchronize]:
+            <k> prepareBuiltin((Identifier("cudaStreamSynchronize")), tv(SId:Nat, _)) 
                   => cuda-stream-synchronize(SId:Nat) ...</k>
-      rule <k> cuda-stream-synchronize(SId:Nat) => cuda-success ...</k>
-            <streams> Streams:Set </streams>
+      rule [cuda-stream-synchronize]:
+            <k> cuda-stream-synchronize(SId:Nat) => cuda-success ...</k>
+            <initializedStreams>... SId ...</initializedStreams>
+            <activeStreams> Streams:Set </activeStreams>
+            when notBool(SId in Streams)
+      rule [cuda-stream-synchronize-error]:
+            < k => finalComputation > cuda-stream-synchronize(SId:Nat) ...</ k => finalComputation >
+           (.Bag => <errorCell> Error("90402", "CUDA: Call to cudaStreamSynchronize with an uncreated stream.") </errorCell>)
+            <initializedStreams> Streams:Set </initializedStreams>
             when notBool(SId in Streams)
 
       /*@ Remove defunct streams. */
       rule (<stream>... <sid>SId:Nat</sid> 
             <streamContents> .K </streamContents> ...</stream> => .)
-            <streams> ... (SetItem(SId)=>.) ...</streams>
+            <activeStreams> ... (SetItem(SId)=>.) ...</activeStreams>
+
+      /*@ Device synchronization. */
+      syntax K ::= "cuda-device-synchronize"
+      rule <k> prepareBuiltin((Identifier("cudaDeviceSynchronize")), _) => cuda-device-synchronize ...</k>
+      rule <k> cuda-device-synchronize => cuda-success ...</k>
+           <activeStreams> .Set </activeStreams> // i.e., all streams are empty.
 
       /*@ \subsection{Memory stuff.} */
       
@@ -353,38 +340,34 @@ module CUDA-SEMANTICS is
       // This disables check in the memcpy thread.
       // TODO: I should make sure the h2d/d2h distinction checks out.
 	rule [cuda-mem-check-memcpy-pass]:
-		<k> cuda-mem-check(loc(Base:Nat, Offset:Nat, 0)) => . ...</k>
+		<k> cuda-mem-check(loc(Base:Nat, _, _)) => . ...</k>
             <gid> 1 </gid>
-
       // TODO: CUDA: Buffer.
 	rule [cuda-mem-check-device-pass]:
-		<k> cuda-mem-check(loc(Base:Nat, Offset:Nat, 0)) => .
-		...</k>
+		<k> cuda-mem-check(loc(N:Nat +Int Base:Nat, _, _)) => . ...</k>
             <gid> GId:Nat </gid>
 		<object>...
-			<basePtr> Base:Nat </basePtr>
+			<basePtr> N:Nat +Int Base:Nat </basePtr>
                   <properties> Attr:Bag </properties>
 		...</object>
             when GId >Int 1 // 1 is the "memcpy" thread.
 		andBool mdevice in Attr:Bag
+            orBool N:Nat =/=K threadId(allocatedDuration) // Ignore everything but malloc'd.
 		[large structural]
-	
 	rule [cuda-mem-check-device-fail]:
-		< k => finalComputation > cuda-mem-check(loc(Base:Nat, Offset:Nat, 0)) 
-            ...</k => finalComputation >
+		< k => finalComputation > cuda-mem-check(loc(threadId(allocatedDuration) +Int Base:Nat, _, _)) 
+            ...</ k => finalComputation >
            (.Bag => <errorCell> Error("90500", "CUDA: Host memory access from device.") </errorCell>)
             <gid> GId:Nat </gid>
 		<object>...
-			<basePtr> Base:Nat </basePtr>
+			<basePtr> threadId(allocatedDuration) +Int Base:Nat </basePtr>
                   <properties> Attr:Bag </properties>
 		...</object>
             when GId >Int 1
 		andBool notBool(mdevice in Attr:Bag)
 		[large structural]
-	
 	rule [cuda-mem-check-host-pass]:
-		<k> cuda-mem-check(loc(Base:Nat, Offset:Nat, 0)) => .
-		...</k>
+		<k> cuda-mem-check(loc(Base:Nat, _, 0)) => . ...</k>
             <gid> 0 </gid>
 		<object>...
 			<basePtr> Base:Nat </basePtr>
@@ -392,10 +375,9 @@ module CUDA-SEMANTICS is
 		...</object>
 		when notBool(mdevice in Attr:Bag)
 		[large structural]
-	
 	rule [cuda-mem-check-host-fail]:
-		< k => finalComputation > cuda-mem-check(loc(Base:Nat, Offset:Nat, 0)) 
-            ...</k => finalComputation >
+		< k => finalComputation > cuda-mem-check(loc(Base:Nat, _, _)) 
+            ...</ k => finalComputation >
            (.Bag => <errorCell> Error("90501", "CUDA: Device memory access from host.") </errorCell>)
             <gid> 0 </gid>
 		<object>...
@@ -418,28 +400,28 @@ module CUDA-SEMANTICS is
 			=> cuda-put-in-stream(cuda-memcpy-h2d(Dst:Nat, Src:Nat, Count:Nat), 0) 
                   ~> cuda-device-synchronize
 		...</k>
-            where Kind:Nat = cudaMemcpyHostToDevice
+            when Kind:Nat ==Int cudaMemcpyHostToDevice
 		[structural]
 	rule [cuda-memcpy-d2h]:
 		<k> prepareBuiltin((Identifier("cudaMemcpy")), (tv(Dst:Nat, t(_, pointerType(_))),, tv(Src:Nat, t(_, pointerType(_))),, tv(Count:Nat, _),, tv(Kind:Nat, _)))
 			=> cuda-put-in-stream(cuda-memcpy-d2h(Dst:Nat, Src:Nat, Count:Nat), 0) 
                   ~> cuda-device-synchronize
 		...</k>
-            where Kind:Nat = cudaMemcpyDeviceToHost
+            when Kind:Nat ==Int cudaMemcpyDeviceToHost
 		[structural]
 	rule [cuda-memcpy-async-h2d]:
 		<k> prepareBuiltin((Identifier("cudaMemcpyAsync")), (tv(Dst:Nat, t(_, pointerType(_))),, tv(Src:Nat, t(_, pointerType(_))),, tv(Count:Nat, _),, tv(Kind:Nat, _),, tv(SId:Nat, _)))
 			=> cuda-put-in-stream(cuda-memcpy-h2d(Dst:Nat, Src:Nat, Count:Nat), SId) 
                   ~> cuda-success
 		...</k>
-            where Kind:Nat = cudaMemcpyHostToDevice
+            when Kind:Nat ==Int cudaMemcpyHostToDevice
 		[structural]
 	rule [cuda-memcpy-async-d2h]:
 		<k> prepareBuiltin((Identifier("cudaMemcpyAsync")), (tv(Dst:Nat, t(_, pointerType(_))),, tv(Src:Nat, t(_, pointerType(_))),, tv(Count:Nat, _),, tv(Kind:Nat, _),, tv(SId:Nat, _)))
 			=> cuda-put-in-stream(cuda-memcpy-d2h(Dst:Nat, Src:Nat, Count:Nat), SId) 
                   ~> cuda-success
 		...</k>
-            where Kind:Nat = cudaMemcpyDeviceToHost
+            when Kind:Nat ==Int cudaMemcpyDeviceToHost
 		[structural]
       
       // TODO: I don't think cuda-join(1) is enough.

@@ -5,14 +5,12 @@ module CUDA-SYNTAX is
 
 	syntax C ::= CudaSpecifier
 	
-/* (from cabs.ml)
-and cudaspec =
-      CUDA_DEVICE | CUDA_GLOBAL | CUDA_HOST
-*/
-
 	syntax CudaSpecifier ::= "CudaDevice"
 	syntax CudaSpecifier ::= "CudaGlobal"
 	syntax CudaSpecifier ::= "CudaHost"
+	syntax CudaSpecifier ::= "CudaNoinline"
+	syntax CudaSpecifier ::= "CudaConstant"
+	syntax CudaSpecifier ::= "CudaShared"
 
       syntax SpecifierElem ::= CudaSpecifier
 

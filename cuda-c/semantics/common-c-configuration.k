@@ -14,7 +14,9 @@ module COMMON-C-CONFIGURATION is
                   // CUDA: block-level memory.
                   <shared> .Map </shared>
                   // CUDA: streams.
-                  <streams> .Set </streams>
+                  <nextSid> 1 </nextSid>
+                  <initializedStreams> .Set </initializedStreams>
+                  <activeStreams> .Set </activeStreams>
                   <stream multiplicity="*"> 
                         <sid> 0 </sid>
                         <streamContents> .K </streamContents>

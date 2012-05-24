@@ -2,11 +2,13 @@ load c-syntax
 load dynamic-c-semantics
 
 load cuda-semantics
+load cuda-typing
 
 module C-SEMANTICS is
 	including DYNAMIC-C-CONFIGURATION
 	including DYNAMIC-C-SEMANTICS
       including CUDA-SEMANTICS
+      including CUDA-TYPING
 end module
 
 module C is 
