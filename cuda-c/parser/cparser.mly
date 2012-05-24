@@ -267,7 +267,8 @@ let transformOffsetOf (speclist, dtype) member =
 %token<Cabs.cabsloc> THREAD
 
 /* CUDA stuff. */
-%token<Cabs.cabsloc> CUDA_DEVICE CUDA_GLOBAL CUDA_HOST
+%token<Cabs.cabsloc> CUDA_DEVICE CUDA_GLOBAL CUDA_HOST CUDA_NOINLINE
+%token<Cabs.cabsloc> CUDA_CONSTANT CUDA_SHARED
 %token INF_INF_INF SUP_SUP_SUP
 /* CUDA stuff done. */
 
@@ -985,6 +986,9 @@ decl_spec_list:                         /* ISO 6.7 */
 |   CUDA_DEVICE decl_spec_list_opt      { SpecCuda CUDA_DEVICE :: $2, $1}
 |   CUDA_GLOBAL decl_spec_list_opt      { SpecCuda CUDA_GLOBAL :: $2, $1}
 |   CUDA_HOST decl_spec_list_opt        { SpecCuda CUDA_HOST :: $2, $1}
+|   CUDA_NOINLINE decl_spec_list_opt    { SpecCuda CUDA_NOINLINE :: $2, $1}
+|   CUDA_CONSTANT decl_spec_list_opt    { SpecCuda CUDA_CONSTANT :: $2, $1}
+|   CUDA_SHARED decl_spec_list_opt      { SpecCuda CUDA_SHARED :: $2, $1}
 /* (* CUDA stuff done. *) */
 |   THREAD_LOCAL decl_spec_list_opt     { 
 	parse_warn "Encountered _Thread_local type.  These are not yet supported, and are currently ignored.";

@@ -92,7 +92,8 @@ and cvspec =
 
 (* CUDA stuff. *)
 and cudaspec =
-    CUDA_DEVICE | CUDA_GLOBAL | CUDA_HOST
+    CUDA_DEVICE | CUDA_GLOBAL | CUDA_HOST | CUDA_NOINLINE | CUDA_CONSTANT |
+    CUDA_SHARED
 (* CUDA stuff done. *)
 
 (* Type specifier elements. These appear at the start of a declaration *)

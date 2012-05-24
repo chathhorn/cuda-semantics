@@ -119,6 +119,9 @@ let init_lexicon _ =
       ("__device__", fun loc -> CUDA_DEVICE loc);
       ("__global__", fun loc -> CUDA_GLOBAL loc);
       ("__host__", fun loc -> CUDA_HOST loc);
+      ("__noinline__", fun loc -> CUDA_NOINLINE loc);
+      ("__constant__", fun loc -> CUDA_CONSTANT loc);
+      ("__shared__", fun loc -> CUDA_SHARED loc);
       (* CUDA stuff done. *)
       ("auto", fun loc -> AUTO loc);
       ("const", fun loc -> CONST loc);

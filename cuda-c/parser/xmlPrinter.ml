@@ -686,11 +686,14 @@ and printSpecElem a =
 	| SpecType bt -> printCell "TypeSpecifier" [] (printTypeSpec bt)
 	| SpecPattern name -> wrap ((printIdentifier name) :: []) "SpecPattern"
       (* CUDA stuff. *)
-      | SpecCuda  cu ->
+      | SpecCuda cu ->
 		wrap ((match cu with
 		| CUDA_DEVICE -> printCell "CudaDevice" [] ""
 		| CUDA_GLOBAL -> printCell "CudaGlobal" [] ""
 		| CUDA_HOST -> printCell "CudaHost" [] ""
+		| CUDA_NOINLINE -> printCell "CudaNoinline" [] ""
+		| CUDA_CONSTANT -> printCell "CudaConstant" [] ""
+		| CUDA_SHARED -> printCell "CudaShared" [] ""
 		) :: []) "CudaSpecifier"
       (* CUDA stuff done. *)
 and printAlignasExpression e = 
