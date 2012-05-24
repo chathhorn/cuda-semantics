@@ -3,12 +3,13 @@
 #include <stdlib.h>
 #include <cuda.h>
 
-#define NUM_ELEMENTS 12
-
-// Fake shared memory.
-int shared[NUM_ELEMENTS];
+#define NELEMENTS 12
+// NRUNS should be < NELEMENTS.
+#define NRUNS 2
 
 __global__ void sum_kernel(int* g_odata, int* g_idata, int n, int run) {
+      extern __shared__ int* shared;
+      //__shared__ int shared[NELEMENTS];
       int i, tid = threadIdx;
 
       shared[tid] = g_idata[tid];
@@ -29,43 +30,44 @@ __global__ void sum_kernel(int* g_odata, int* g_idata, int n, int run) {
 
 __host__ int main(int argc, char** argv) {
       int* d_idata, *d_odata, *h_data;
-
-      int i, num_elements = 12;
+      int i;
       int nblocks = 1;
-      int nthreads = num_elements;
-      // nruns should be < num_elements.
-      int nruns = 2;
+      int nthreads = NELEMENTS;
 
+      // Use a different stream for every run.
+      cudaStream_t streams[NRUNS];
 
-      h_data = malloc(num_elements * sizeof(int));
+      h_data = malloc(NELEMENTS * sizeof(int));
 
       printf("INPUT: ");
-      for(i = 0; i != num_elements; ++i) {
+      for(i = 0; i != NELEMENTS; ++i) {
 
             h_data[i] = (11 + i * i) % 7;
             printf(" %d ", h_data[i]);
       }
       printf("\n");
 
-      cudaMalloc(&d_idata, num_elements * sizeof(int));
-      cudaMalloc(&d_odata, nruns * sizeof(int));
+      cudaMalloc(&d_idata, NELEMENTS * sizeof(int));
+      cudaMalloc(&d_odata, NRUNS * sizeof(int));
 
-      cudaMemcpy(d_idata, h_data, num_elements * sizeof(int), cudaMemcpyHostToDevice);
+      cudaMemcpy(d_idata, h_data, NELEMENTS * sizeof(int), cudaMemcpyHostToDevice);
 
-      printf("Running sum of %d elements\n", num_elements);
+      printf("Running sum of %d elements\n", NELEMENTS);
 
-      for (i = 0; i != nruns; ++i) {
-            sum_kernel<<< nblocks, nthreads, 2 * num_elements, i >>>
-                  (d_odata, d_idata, num_elements, i);
+      for (i = 0; i != NRUNS; ++i) {
+            cudaStreamCreate(&streams[i]);
+            sum_kernel<<< nblocks, nthreads, NELEMENTS * sizeof(int), streams[i] >>>
+                  (d_odata, d_idata, NELEMENTS, i);
       }
       cudaDeviceSynchronize();
 
-      cudaMemcpyAsync(h_data, d_odata, nruns * sizeof(int), cudaMemcpyDeviceToHost, 1);
+      cudaMemcpyAsync(h_data, d_odata, NRUNS * sizeof(int), cudaMemcpyDeviceToHost, streams[0]);
 
-      cudaStreamSynchronize(1);
+      cudaStreamSynchronize(streams[0]);
 
       printf("OUTPUT: ");
-      for(i = 0; i != nruns; ++i) {
+      for(i = 0; i != NRUNS; ++i) {
+            cudaStreamDestroy(streams[i]);
             printf(" %d ", h_data[i]);
       }
       printf("\n");
