@@ -160,7 +160,7 @@ module COMMON-SEMANTICS-TYPE-CANONICALIZATION is
 		[structural]
 
 	rule
-		<k> canonicalizeType-aux(B:Bag (BagItem(T:K) => .Bag), _, _, _, (_ .Bag => BagItem(T:K))) ...</k>
+		<k> canonicalizeType-aux(B:Bag (BagItem(T:K) => .Bag), _, _, _, (_ (.Bag => BagItem(T:K)))) ...</k>
 		when T:K ==K Extern
 		orBool T:K ==K Static
 		orBool T:K ==K Const
@@ -173,7 +173,7 @@ module COMMON-SEMANTICS-TYPE-CANONICALIZATION is
 		[structural]
 		
 	rule
-		<k> canonicalizeType-aux(.Bag, (T:KResult => t(.Set, qualifiedType(T:KResult, Q:K))), .Bag, .Bag, (_ BagItem(Q:K) => .Bag)) ...</k>
+		<k> canonicalizeType-aux(.Bag, (T:KResult => t(.Set, qualifiedType(T:KResult, Q:K))), .Bag, .Bag, (_ (BagItem(Q:K) => .Bag))) ...</k>
 		when Q:K ==K Extern
 		orBool Q:K ==K Static
 		orBool Q:K ==K Volatile
@@ -184,7 +184,7 @@ module COMMON-SEMANTICS-TYPE-CANONICALIZATION is
 		orBool Q:K ==K ThreadLocal
 		[structural]
 	rule
-		<k> canonicalizeType-aux(.Bag, (t((.Set => SetItem(Const)) _, _)), .Bag, .Bag, (_ BagItem(Q:K) => .Bag)) ...</k>
+		<k> canonicalizeType-aux(.Bag, (t((.Set => SetItem(Const)) _, _)), .Bag, .Bag, (_ (BagItem(Q:K) => .Bag))) ...</k>
 		when Q:K ==K Const
 		[structural]
 		
@@ -875,7 +875,8 @@ module COMMON-SEMANTICS-TYPE-MISC is
 	// */
 	define isArithmeticType(T:KResult) => hasIntegerType(T:KResult) orBool isFloatType(T:KResult)
 
-	define unqualifyType(t(_:Set, qualifiedType(T:KResult, _))) => T:KResult 
+      // TODO: is this enough?
+	define unqualifyType(t(_:Set, qualifiedType(T:KResult, _))) => unqualifyType(T:KResult)
 	define unqualifyType(t(_:Set, T:K)) => t(.Set, T:K)
 		when getKLabel(T:K) =/=KLabel 'qualifiedType 
 		

@@ -9,10 +9,10 @@ module COMMON-C-CONFIGURATION is
                   //<did> 0 </did> // CUDA: device ID.
 
                   // CUDA: the grid id will be unique for every kernel call.
-                  <nextGid> 2 </nextGid> 
+                  <nextGid> 1 </nextGid> 
                   <grids> .Map </grids>
                   // CUDA: block-level memory.
-                  <shared> .Map </shared>
+                  <cudaShared> .Map </cudaShared>
                   // CUDA: streams.
                   <nextSid> 1 </nextSid>
                   <initializedStreams> .Set </initializedStreams>
@@ -76,6 +76,7 @@ module COMMON-C-CONFIGURATION is
                               <gid> 0 </gid> // CUDA: grid id.
                               <bid> 0 </bid> // CUDA: block id.
                               <tid> 0 </tid> // CUDA: thread id.
+                              <threadAccess> .Set </threadAccess>
 
 					<threadId color="yellow"> 0 </threadId>
 					<nextLoc color="black"> 0 </nextLoc> // should be initialized with a pair (threadId, 0)

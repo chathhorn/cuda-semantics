@@ -8,8 +8,7 @@
 #define NRUNS 2
 
 __global__ void sum_kernel(int* g_odata, int* g_idata, int n, int run) {
-      extern __shared__ int* shared;
-      //__shared__ int shared[NELEMENTS];
+      __shared__ extern int* shared;
       int i, tid = threadIdx;
 
       shared[tid] = g_idata[tid];
