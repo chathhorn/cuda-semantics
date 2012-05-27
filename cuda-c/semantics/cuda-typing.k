@@ -1,7 +1,9 @@
 load dynamic-c-semantics
+load cuda-extern
 
 module CUDA-TYPING
       including COMMON-C-TYPING
+      including CUDA-EXTERN
 
        rule <k> canonicalizeType-aux(B:Bag (BagItem(T:K) => .Bag), _, _, _, (_ (.Bag => BagItem(T:K)))) ...</k>
              when T:K ==K CudaGlobal
@@ -30,7 +32,6 @@ module CUDA-TYPING
             => t(S:Set S':Set, T:K) 
             [structural anywhere]
 
-      declare isCudaSharedType : Type -> Bool
       declare isCudaDeviceType : Type -> Bool
       declare isCudaGlobalType : Type -> Bool
 

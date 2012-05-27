@@ -9,19 +9,84 @@ module CUDA-SEMANTICS is
       macro cuda-success = tv(0, t(.Set, int))
 
       /*@ Declarations. */
-       rule [declare-cuda-shared]:
+       rule [cuda-declare-shared-dynamic]:
 		<k> declareInternalVariable(X:Id, T:KResult, NoInit)
 			=> declareWithLinkage(X:Id, T:KResult, SingleInit(tv(SharedLoc:Nat, unqualifyType(T:KResult))), noLinkage)
 		...</k>
             <gid> GId:Nat </gid>
             <bid> BId:Nat </bid>
-            <cudaShared>... cuda-shared-loc(GId:Nat, BId:Nat) |-> SharedLoc:Nat ...</cudaShared>
+            <cudaShared>... 
+                  cuda-shared-loc(GId:Nat, BId:Nat, Identifier("$dynamic")) |-> SharedLoc:Nat 
+            ...</cudaShared>
 		when notBool isStaticType(T:KResult)
 		andBool isExternType(T:KResult)
             andBool isCudaSharedType(T:KResult)
             // __shared__ and extern on anything but a pointer must be illegal.
-            andBool isPointerType(T:KResult)
+            //andBool isPointerType(T:KResult) // also, incompleteArrayType
 		[structural] 
+
+       // TODO: Initializers (is that legal on shared variables?).
+       rule [cuda-declare-shared-noalloc]:
+		<k> declareInternalVariable(X:Id, T:KResult, NoInit)
+			=> addToEnv(X:Id, SharedLoc:Nat)
+			~> giveType(X:Id, T:KResult)
+		...</k>
+            <gid> GId:Nat </gid>
+            <bid> BId:Nat </bid>
+            <cudaShared>... 
+                  cuda-shared-loc(GId:Nat, BId:Nat, X:Id) |-> SharedLoc:Nat 
+            ...</cudaShared>
+		when notBool isStaticType(T:KResult)
+		andBool notBool isExternType(T:KResult)
+            andBool isCudaSharedType(T:KResult)
+		[structural] 
+       rule [cuda-declare-shared]:
+		<k> declareInternalVariable(X:Id, T:KResult, NoInit)
+			=> allocateType(loc(Base:Nat, 0, 0), T:KResult)
+                  ~> cuda-set-mdevice(loc(Base:Nat, 0, 0)) 
+                  ~> addToEnv(X:Id, loc(Base:Nat, 0, 0))
+			~> giveType(X:Id, T:KResult)
+		...</k>
+            <gid> GId:Nat </gid>
+            <bid> BId:Nat </bid>
+            <cudaShared>... 
+                  . => (cuda-shared-loc(GId:Nat, BId:Nat, X:Id) |-> loc(Base:Nat, 0, 0))
+            ...</cudaShared>
+            <freshNat> Fresh:Nat => Fresh:Nat +Int 1 </freshNat>
+		when notBool isStaticType(T:KResult)
+		andBool notBool isExternType(T:KResult)
+            andBool isCudaSharedType(T:KResult)
+            where Base = threadId(allocatedDuration) +Int Fresh
+		[structural] 
+
+      syntax K ::= "cuda-alloc-shared" "(" Id "," Nat ")"
+      rule [cuda-alloc-shared-skip]:
+            <k> cuda-alloc-shared(X:Id, _) => . ... </k>
+            <bid> BId:Nat </bid>
+            <gid> GId:Nat </gid>
+            <cudaShared>... 
+                  cuda-shared-loc(GId:Nat, BId:Nat, X:Id) |-> _:Nat
+            ...</cudaShared>
+      rule [cuda-alloc-shared]:
+            <k> cuda-alloc-shared(X:Id, Len:Nat) 
+                  => alloc(loc(Base:Nat, 0, 0), Len)
+                  ~> cuda-set-mdevice(loc(Base:Nat, 0, 0)) 
+            ...</k>
+            <bid> BId:Nat </bid>
+            <gid> GId:Nat </gid>
+            <cudaShared>... 
+                  . => (cuda-shared-loc(GId:Nat, BId:Nat, X:Id) |-> loc(Base:Nat, 0, 0))
+            ...</cudaShared>
+            <freshNat> Fresh:Nat => Fresh:Nat +Int 1 </freshNat>
+            where Base = threadId(allocatedDuration) +Int Fresh
+
+      syntax K ::= "cuda-set-mdevice" "(" Nat ")"
+      rule [cuda-set-mdevice]:
+            <k> cuda-set-mdevice(loc(Base:Nat, 0, 0)) => . ...</k>
+            <object>...
+                  <basePtr> Base:Nat </basePtr>
+                  <properties>... (. => cuda-mdevice) </properties>
+            ...</object>
 
       // call, nblocks, threads per block, nshared, stream
       syntax K ::= "cuda-launch-kernel" "(" K "," Nat "," Nat "," Nat "," Nat ")"
@@ -80,6 +145,7 @@ module CUDA-SEMANTICS is
  
        rule [cuda-launch-thread]:
             <streamContents> cuda-launch-thread(TBody:K, GId:Nat, BId:Nat, TId:Nat) => . ...</streamContents>
+            <grids> ... GId |-> cuda-grid(_, _, _, NShared:Nat) ... </grids>
             // TODO: must we clone the main thread?
             <nextThreadId> ThreadId:Nat => ThreadId +Int 1</nextThreadId>
             <threadStatus> Status:Map => Status[threadRunning / ThreadId] </threadStatus>
@@ -109,7 +175,7 @@ module CUDA-SEMANTICS is
                   <nextLoc> loc(threadId(ThreadId) +Int 0, 0, 0) </nextLoc>
                   <threadId> ThreadId </threadId>
                   C:Bag
-                  <k> TBody </k>
+                  <k> cuda-alloc-shared(Identifier("$dynamic"), NShared:Nat) ~> TBody:K </k>
                   <threadLocal>
                         <callStack> .List </callStack>
                         <control>
@@ -124,54 +190,37 @@ module CUDA-SEMANTICS is
 
       rule [cuda-launch-grid-head]:
             <streamContents> 
-                  (. => cuda-launch-thread((Computation(FCall) ~> cuda-sync-grid ~> cuda-free-shared(0) ~> cuda-join(GId)), GId, 0, 0))
+                  (. => cuda-launch-thread((Computation(FCall) ~> cuda-sync-grid ~> cuda-join(GId)), GId, 0, 0))
                   ~> (cuda-launch-threads(GId:Nat, 0, 0) => cuda-join(GId))
             ...</streamContents>
             <grids> ... GId |-> cuda-grid(FCall:K, NBlocks:Nat, NThreads:Nat, NShared:Nat) ... </grids>
-            <cudaShared>... . => (cuda-shared-loc(GId:Nat, 0) |-> loc(Base, 0, 0)) </cudaShared>
-            <freshNat> Fresh:Nat => Fresh:Nat +Int 1 </freshNat>
-            <memory>...
-                  (.Bag => <object>...
-                        <basePtr> Base:Nat </basePtr>
-                        <oLength> NShared:Nat </oLength>
-                        <properties> cuda-mdevice cuda-mshared </properties>
-                  ...</object>)
-            ...</memory>
-            where Base = threadId(allocatedDuration) +Int Fresh
             [structural]
 
       /*@ Launch the first thread of a block. */
 
       rule [cuda-launch-block-head]:
             <streamContents> 
-                  (. => cuda-launch-thread((Computation(FCall) ~> cuda-sync-grid ~> cuda-free-shared(BId)), GId, BId, 0)) 
+                  (. => cuda-launch-thread((Computation(FCall) ~> cuda-sync-grid ), GId, BId, 0)) 
                   ~> cuda-launch-threads(GId:Nat, (BId:Nat => BId -Int 1), (0 => NThreads -Int 1)) 
             ...</streamContents>
             <grids> ... GId |-> cuda-grid(FCall:K, NBlocks:Nat, NThreads:Nat, NShared:Nat) ... </grids>
-            <cudaShared>... . => (cuda-shared-loc(GId:Nat, BId:Nat) |-> loc(Base, 0, 0)) </cudaShared>
-            <freshNat> Fresh:Nat => Fresh:Nat +Int 1 </freshNat>
-            <memory>...
-                  (.Bag => <object>...
-                        <basePtr> Base:Nat </basePtr>
-                        <oLength> NShared:Nat </oLength>
-                        <properties> cuda-mdevice cuda-mshared </properties>
-                  ...</object>)
-            ...</memory>
             when BId >Int 0
-            where Base = threadId(allocatedDuration) +Int Fresh
             [structural]
 
       /* @ Free shared memory. */
 
-      // bid
-      syntax K ::= "cuda-free-shared" "(" Nat ")"
       // gid, bid
-      syntax K ::= "cuda-shared-loc" "(" Nat "," Nat ")"
-      rule [cuda-free-shared]:
-            <k> cuda-free-shared(BId:Nat) => deleteSizedBlock(Loc:Nat, NShared:Nat) ...</k>
-            <gid> GId:Nat </gid>
-            <grids>... GId |-> cuda-grid(_, _, _, NShared:Nat) ...</grids>
-            <cudaShared>... (cuda-shared-loc(GId:Nat, BId:Nat) |-> Loc:Nat) => . ...</cudaShared>
+      syntax K ::= "cuda-shared-loc" "(" Nat "," Nat "," Id ")"
+
+        // TODO: Not bothering for now.
+   //   // bid
+   //   syntax K ::= "cuda-free-shared" "(" Nat ")"
+   //   // TODO: the non-dynamic shared.
+   //   rule [cuda-free-shared]:
+   //         <k> cuda-free-shared(BId:Nat) => deleteSizedBlock(Loc:Nat, NShared:Nat) ...</k>
+   //         <gid> GId:Nat </gid>
+   //         <grids>... GId |-> cuda-grid(_, _, _, NShared:Nat) ...</grids>
+   //         <cudaShared>... (cuda-shared-loc(GId:Nat, BId:Nat, Identifier("$dynamic")) |-> Loc:Nat) => . ...</cudaShared>
 
       /*@ Launch the other threads. */
 
@@ -453,14 +502,14 @@ module CUDA-SEMANTICS is
       rule [cuda-memcpy-h2d]:
             <k> prepareBuiltin((Identifier("cudaMemcpy")), (tv(Dst:Nat, t(_, pointerType(_))),, tv(Src:Nat, t(_, pointerType(_))),, tv(Count:Nat, _),, tv(Kind:Nat, _)))
                   => cuda-put-in-stream(cuda-memcpy-h2d(Dst:Nat, Src:Nat, Count:Nat), 0) 
-                  ~> cuda-device-synchronize
+                  ~> cuda-stream-synchronize(0)
             ...</k>
             when Kind:Nat ==Int cudaMemcpyHostToDevice
             [structural]
       rule [cuda-memcpy-d2h]:
             <k> prepareBuiltin((Identifier("cudaMemcpy")), (tv(Dst:Nat, t(_, pointerType(_))),, tv(Src:Nat, t(_, pointerType(_))),, tv(Count:Nat, _),, tv(Kind:Nat, _)))
                   => cuda-put-in-stream(cuda-memcpy-d2h(Dst:Nat, Src:Nat, Count:Nat), 0) 
-                  ~> cuda-device-synchronize
+                  ~> cuda-stream-synchronize(0)
             ...</k>
             when Kind:Nat ==Int cudaMemcpyDeviceToHost
             [structural]
@@ -493,7 +542,7 @@ module CUDA-SEMANTICS is
             <thread> <gid> 0 </gid> <k> _:K </k> C:Bag </thread> // TODO: probably grabbing too much.
             (.Bag =>
             <thread>
-                  <k> cuda-memcpy(Dst:Nat, Src:Nat, Count:Nat) ~> cuda-join(1) </k>
+                  <k> cuda-memcpy(Dst:Nat, Src:Nat, Count:Nat) ~> cuda-join(GId:Nat) </k>
                   <gid> GId:Nat </gid>
                   <threadAccess> cuda-access-host-read cuda-access-device-write </threadAccess>
                   C:Bag
