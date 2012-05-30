@@ -5,7 +5,7 @@ my $count = 1;
 while(<>) {
 	my $line = $_;
 	chomp($line);
-	if ($line =~ /mod[ ]+C[ ]+is/) {
+	if ($line =~ /mod[ ]+CU[ ]+is/) {
 		print "$count";
 		exit;
 	}

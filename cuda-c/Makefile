@@ -17,11 +17,28 @@ export C_K_BASE ?= $(K_BASE)
 #FILTER = $(SEMANTICS_DIR)/outputFilter.yml
 #VPATH = programs
 
+#FILES_TO_DIST = \
+	$(K_BASE)/core/java/wrapperAndServer.jar \
+	$(K_BASE)/core/java/jopt-simple-3.3.jar \
+	$(SEMANTICS_DIR)/cu-total.maude \
+	$(SEMANTICS_DIR)/cu-total-nd.maude \
+	$(wildcard $(SCRIPTS_DIR)/*.sql) \
+	$(SCRIPTS_DIR)/accessProfiling.pl \
+	$(SCRIPTS_DIR)/link.pl \
+	$(SCRIPTS_DIR)/wrapper.pl \
+	$(SCRIPTS_DIR)/compile.pl \
+	$(SCRIPTS_DIR)/xmlToK.pl \
+	$(SCRIPTS_DIR)/graphSearch.pl \
+	$(SCRIPTS_DIR)/programRunner.pl \
+	$(SCRIPTS_DIR)/analyzeProfile.pl \
+	$(PARSER_DIR)/cparser \
+	$(wildcard $(SEMANTICS_DIR)/includes/*) \
+	$(wildcard $(SEMANTICS_DIR)/lib/*)
+
 FILES_TO_DIST = \
 	$(K_BASE)/core/java/wrapperAndServer.jar \
 	$(K_BASE)/core/java/jopt-simple-3.3.jar \
-	$(SEMANTICS_DIR)/c-total.maude \
-	$(SEMANTICS_DIR)/c-total-nd.maude \
+	$(SEMANTICS_DIR)/cu-total.maude \
 	$(wildcard $(SCRIPTS_DIR)/*.sql) \
 	$(SCRIPTS_DIR)/accessProfiling.pl \
 	$(SCRIPTS_DIR)/link.pl \
@@ -43,8 +60,8 @@ all: dist
 fast: WHICH_SEMANTICS="fast"
 fast: dist
 
-nd: WHICH_SEMANTICS="nd"
-nd: dist
+# nd: WHICH_SEMANTICS="nd"
+# nd: dist
 
 check-vars:
 ifeq ($(C_K_BASE),)
@@ -95,7 +112,7 @@ $(DIST_DIR)/dist.done: check-vars Makefile cparser semantics $(FILES_TO_DIST)
 # done so that an empty file gets copied by the analyzeProfile.pl wrapper
 	@mv maudeProfileDBfile.sqlite maudeProfileDBfile.sqlite.calibration.bak > /dev/null 2>&1 || true
 	@touch maudeProfileDBfile.sqlite
-	@perl $(SCRIPTS_DIR)/initializeProfiler.pl $(SEMANTICS_DIR)/c-total.maude
+	@perl $(SCRIPTS_DIR)/initializeProfiler.pl $(SEMANTICS_DIR)/cu-total.maude
 	@mv maudeProfileDBfile.sqlite $(DIST_DIR)/maudeProfileDBfile.calibration.sqlite
 	@mv maudeProfileDBfile.sqlite.calibration.bak maudeProfileDBfile.sqlite > /dev/null 2>&1 || true
 	@echo "Done."
@@ -105,8 +122,8 @@ $(DIST_DIR)/dist.done: check-vars Makefile cparser semantics $(FILES_TO_DIST)
 	@echo "Done."
 	@touch $(DIST_DIR)/dist.done
 
-test: dist
-	@$(MAKE) -C tests
+# test: dist
+#	@$(MAKE) -C tests
 
 force: ;
 
@@ -115,7 +132,7 @@ cparser:
 	@-strip $(PARSER)
 
 semantics: check-vars
-#@rm -f $(SEMANTICS_DIR)/c-total-nd.maude
+#@rm -f $(SEMANTICS_DIR)/cu-total-nd.maude
 	@$(MAKE) $(WHICH_SEMANTICS) -C $(SEMANTICS_DIR)
 
 clean:

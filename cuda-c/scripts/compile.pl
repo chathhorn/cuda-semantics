@@ -77,7 +77,7 @@ my $spec = q(#
   -p				Profile parsing
 #-verbose			Do not delete intermediate files
   -w				Do not print warning messages
-  <files>...			.c files to be compiled [required]
+  <files>...			.cu files to be compiled [required]
 		{ defer { foreach (@files) { compile($_); } } }
 #-funsigned-char		Let the type "char" be unsigned, like "unsigned char"
 #-fsigned-char			Let the type "char" be signed, like "signed char"
@@ -178,7 +178,7 @@ sub compile {
 		die "kcc: $file: No such file or directory";
 	}
 	my $inputDirectory = dirname($inputFile);
-	my ($baseName, $inputDirectory, $suffix) = fileparse($inputFile, ('\.c', '\.o', '\.a'));
+	my ($baseName, $inputDirectory, $suffix) = fileparse($inputFile, ('\.c', '\.cu', '\.o', '\.a'));
 	#print "basename = $baseName\n";
 	#print "inputDirectory = $inputDirectory\n";
 	#print "suffix = $suffix\n";
@@ -240,10 +240,10 @@ sub compileProgram {
 	push(@temporaryFiles, $compilationLog);
 	
 	my $trueFilename = $inputFile;
-	my ($filename, $directoryname, $suffix) = fileparse($inputFile, '.c');
-	my $fullfilename = catfile($directoryname, "$filename.c");
+	my ($filename, $directoryname, $suffix) = fileparse($inputFile, ('\.c', '\.cu'));
+	my $fullfilename = catfile($directoryname, "$filename$suffix");
 	if (! -e $fullfilename) {
-		die "$filename.c not found";
+		die "$filename$suffix not found";
 	}
 	
 	# print "@::gccDefines\n";
