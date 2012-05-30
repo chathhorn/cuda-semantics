@@ -1,14 +1,13 @@
+/* From: http://llpanorama.wordpress.com/2008/05/21/my-first-cuda-program/ */
 #include <stdlib.h> 
 #include <stdio.h> 
 #include <cuda.h> 
 
 __global__ void square_array(float *a, int N) { 
-      //int idx = blockIdx.x * blockDim.x + threadIdx.x; 
-      //if (idx < N) a[idx] = a[idx] * a[idx]; 
-      printf("bam");
+      int idx = blockIdx * blockDim + threadIdx; 
+      if (idx < N) a[idx] = a[idx] * a[idx]; 
 }
 
-// main routine that executes on the host
 int main(void) { 
       float *hostptr, *devptr;
       int N = 10, i;
@@ -20,19 +19,19 @@ int main(void) {
 
       hostptr = (float*) malloc(nbytes);
       devptr = (float*) malloc(nbytes);
-      //cudaMalloc((void**) &devptr, nbytes);
+      cudaMalloc((void**) &devptr, nbytes);
 
       for (i = 0; i != N; ++i) 
             hostptr[i] = (float)i;
 
-      //cudaMemcpy(devptr, hostptr, nbytes, cudaMemcpyHostToDevice); 
+      cudaMemcpy(devptr, hostptr, nbytes, cudaMemcpyHostToDevice); 
       square_array<<<nblocks, nthreads>>>(devptr, N); 
-      //cudaMemcpy(hostptr, devptr, nbytes, cudaMemcpyDeviceToHost); 
+      cudaMemcpy(hostptr, devptr, nbytes, cudaMemcpyDeviceToHost); 
 
       for (i = 0; i != N; ++i) 
             printf("%d %f\n", i, hostptr[i]);
 
-      //cudaFree(devptr); 
+      cudaFree(devptr); 
       free(hostptr);
 }
 

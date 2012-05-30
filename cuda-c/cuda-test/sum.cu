@@ -38,6 +38,10 @@ __host__ int main(int argc, char** argv) {
       int* d_idata, *d_odata, *h_data;
       int i;
 
+      void (*fptr)(int*,int*,int);
+
+      fptr = sum_kernel;
+
       // Use a different stream for every run.
       cudaStream_t streams[NRUNS];
 
@@ -69,7 +73,7 @@ __host__ int main(int argc, char** argv) {
 
       for (i = 0; i != NRUNS; ++i) {
             cudaStreamCreate(&streams[i]);
-            sum_kernel<<< NBLOCKS, NTHREADS_PER_BLOCK, NELEMENTS * sizeof(int), streams[i] >>>
+            fptr<<< NBLOCKS, NTHREADS_PER_BLOCK, NELEMENTS * sizeof(int), streams[i] >>>
                   (d_odata, d_idata, i);
       }
       cudaDeviceSynchronize();
