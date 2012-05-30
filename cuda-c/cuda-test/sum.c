@@ -6,32 +6,37 @@
 #define NELEMENTS 12
 // NRUNS should be < NELEMENTS.
 #define NRUNS 2
+#define NBLOCKS 2
+// NTHREADS_PER_BLOCK*NBLOCKS should equal NELEMENTS
+#define NTHREADS_PER_BLOCK 6
 
-__global__ void sum_kernel(int* g_odata, int* g_idata, int n, int run) {
-      __shared__ extern int* shared;
-      int i, tid = threadIdx;
+__global__ void sum_kernel(int* g_odata, int* g_idata, int run) {
+      __shared__ int shared[NTHREADS_PER_BLOCK];
+      int i, gtid = (blockIdx * blockDim) + threadIdx;
+      int tid = threadIdx;
 
-      shared[tid] = g_idata[tid];
+      shared[tid] = g_idata[gtid];
+      
       __syncthreads();
 
-      if (tid < n/2) {
-            shared[tid] = shared[tid] + shared[n/2 + tid];
+      if (tid < NTHREADS_PER_BLOCK/2) {
+            shared[tid] += shared[NTHREADS_PER_BLOCK/2 + tid];
       }
 
       __syncthreads();
 
       if (tid == 0) {
-            for (i = 1; i != n/2; ++i) 
+            for (i = 1; i != NTHREADS_PER_BLOCK/2; ++i) {
                   shared[0] += shared[i];
-            g_odata[run] = shared[0];
+            }
+
+            g_odata[run] += shared[0];
       }
 }
 
 __host__ int main(int argc, char** argv) {
       int* d_idata, *d_odata, *h_data;
       int i;
-      int nblocks = 1;
-      int nthreads = NELEMENTS;
 
       // Use a different stream for every run.
       cudaStream_t streams[NRUNS];
@@ -51,12 +56,21 @@ __host__ int main(int argc, char** argv) {
 
       cudaMemcpy(d_idata, h_data, NELEMENTS * sizeof(int), cudaMemcpyHostToDevice);
 
-      printf("Running sum of %d elements\n", NELEMENTS);
+      // TODO: cudaMemset()?
+      // Zero d_odata.
+      for (i = 0; i != NRUNS; ++i) {
+            h_data[i] = 0;
+      }
+      cudaMemcpy(d_odata, h_data, NRUNS * sizeof(int), cudaMemcpyHostToDevice);
+      
+      printf("Launching %d blocks of %d threads each " 
+             "to asychronously sum the list above %d times.\n", 
+             NBLOCKS, NTHREADS_PER_BLOCK, NRUNS);
 
       for (i = 0; i != NRUNS; ++i) {
             cudaStreamCreate(&streams[i]);
-            sum_kernel<<< nblocks, nthreads, NELEMENTS * sizeof(int), streams[i] >>>
-                  (d_odata, d_idata, NELEMENTS, i);
+            sum_kernel<<< NBLOCKS, NTHREADS_PER_BLOCK, NELEMENTS * sizeof(int), streams[i] >>>
+                  (d_odata, d_idata, i);
       }
       cudaDeviceSynchronize();
 

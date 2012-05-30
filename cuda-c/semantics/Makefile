@@ -24,7 +24,7 @@ COMPILE_C_ND = $(K_MAUDE) c.k -u -language C -anywhere "anywhere" -transition "c
 #-lib maudeLib/common-c-builtins.maude
 
 # chathhorn: adding cuda-syntax.k, cuda-typing.k, and cuda-semantics.k.
-COMMON_C_FILES = c-syntax.k cuda-syntax.k cuda-typing.k \
+COMMON_C_FILES = c-syntax.k cuda-syntax.k cuda-extern.k cuda-typing.k \
 common-c-syntax.k common-c-helpers.k common-c-configuration.k common-c-expressions.k common-c-semantics.k common-c-statements.k common-c-declarations.k common-c-typing.k
 DYNAMIC_C_FILES = c.k cuda-semantics.k dynamic-c-semantics.k dynamic-c-configuration.k dynamic-c-expressions.k dynamic-c-errors.k dynamic-c-statements.k dynamic-c-conversions.k dynamic-c-typing.k dynamic-c-declarations.k dynamic-c-memory.k dynamic-c-standard-lib.k
 

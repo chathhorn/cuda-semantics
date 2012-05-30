@@ -1,3 +1,5 @@
+load cuda-extern
+
 module COMMON-SEMANTICS-DECLARATIONS-INCLUDE is
 	including COMMON-INCLUDE 
 	syntax K ::= "figureInitializer-aux" "(" Id "," Type "," K ")" [strict(3) klabel(figureInitializer-aux)] // id, type, initializer
@@ -17,6 +19,8 @@ end module
 
 module COMMON-SEMANTICS-DECLARATIONS-GENERAL is
 	including COMMON-SEMANTICS-DECLARATIONS-INCLUDE 
+
+      including CUDA-EXTERN
 
 	// c99 6.7.8:9 Except where explicitly stated otherwise, for the purposes of this subclause unnamed members of objects of structure and union type do not participate in initialization.  Unnamed members of structure objects have indeterminate value even after initialization
 	// c99 6.7.8:10 If an object that has automatic storage duration is not initialized explicitly, its value is indeterminate. If an object that has static storage duration is not initialized explicitly, then:
@@ -237,6 +241,7 @@ module COMMON-SEMANTICS-DECLARATIONS-GENERAL is
 		...</k>
 		when notBool isStaticType(T:KResult)
 		andBool notBool isExternType(T:KResult)
+		andBool notBool isCudaSharedType(T:KResult)
 		[structural] 
 		
 	rule
