@@ -121,7 +121,5 @@ semantics: check-vars
 clean:
 	$(MAKE) -C $(PARSER_DIR) clean
 	$(MAKE) -C $(SEMANTICS_DIR) clean
-	$(MAKE) -C gcc-test clean
-	$(MAKE) -C tests clean
 	rm -rf $(DIST_DIR)
 	rm -f ./*.tmp ./*.log ./*.cil ./*-gen.maude ./*.gen.maude ./*.pre.gen ./*.prepre.gen ./a.out ./*.kdump ./*.pre.pre
