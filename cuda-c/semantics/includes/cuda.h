@@ -20,7 +20,7 @@ cudaError_t cudaMemcpyAsync(void* dst, const void* src, size_t count, enum cudaM
 
 cudaError_t cudaDeviceSynchronize(void);
 
-void __syncthreads(void);
+__device__ void __syncthreads(void);
 
 extern int threadIdx;
 extern int blockIdx;

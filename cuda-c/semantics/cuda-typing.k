@@ -35,13 +35,15 @@ module CUDA-TYPING
       declare isCudaDeviceType : Type -> Bool
       declare isCudaGlobalType : Type -> Bool
 
+      // TODO: functionType
+
       define [isCudaSharedType-true]: isCudaSharedType(t(_, qualifiedType(_, CudaShared))) => true 
       define [isCudaSharedType-prototype]: isCudaSharedType(t(_, prototype(T:KResult))) => isCudaSharedType(T:KResult) 
       define [isCudaSharedType-qualified]: isCudaSharedType(t(_, qualifiedType(T:KResult, Q:K))) => isCudaSharedType(T:KResult) 
             when getKLabel(Q:K) =/=KLabel 'CudaShared
       define [isCudaSharedType-false]: isCudaSharedType(t(_, T:K)) => false
-            when getKLabel(T:K) =/=KLabel 'functionType
-            andBool getKLabel(T:K) =/=KLabel 'qualifiedType
+            //when getKLabel(T:K) =/=KLabel 'functionType
+            when getKLabel(T:K) =/=KLabel 'qualifiedType
             andBool getKLabel(T:K) =/=KLabel 'prototype 
 
       define [isCudaDeviceType-true]: isCudaDeviceType(t(_, qualifiedType(_, CudaDevice))) => true 
@@ -49,8 +51,8 @@ module CUDA-TYPING
       define [isCudaDeviceType-qualified]: isCudaDeviceType(t(_, qualifiedType(T:KResult, Q:K))) => isCudaDeviceType(T:KResult) 
             when getKLabel(Q:K) =/=KLabel 'CudaDevice
       define [isCudaDeviceType-false]: isCudaDeviceType(t(_, T:K)) => false
-            when getKLabel(T:K) =/=KLabel 'functionType
-            andBool getKLabel(T:K) =/=KLabel 'qualifiedType
+            //when getKLabel(T:K) =/=KLabel 'functionType
+            when getKLabel(T:K) =/=KLabel 'qualifiedType
             andBool getKLabel(T:K) =/=KLabel 'prototype 
 
       define [isCudaGlobalType-true]: isCudaGlobalType(t(_, qualifiedType(_, CudaGlobal))) => true 
@@ -58,8 +60,8 @@ module CUDA-TYPING
       define [isCudaGlobalType-qualified]: isCudaGlobalType(t(_, qualifiedType(T:KResult, Q:K))) => isCudaGlobalType(T:KResult) 
             when getKLabel(Q:K) =/=KLabel 'CudaGlobal
       define [isCudaGlobalType-false]: isCudaGlobalType(t(_, T:K)) => false
-            when getKLabel(T:K) =/=KLabel 'functionType
-            andBool getKLabel(T:K) =/=KLabel 'qualifiedType
+            //when getKLabel(T:K) =/=KLabel 'functionType
+            when getKLabel(T:K) =/=KLabel 'qualifiedType
             andBool getKLabel(T:K) =/=KLabel 'prototype 
 
     //  define [isCudaHostType-true]: isCudaHostType(t(_, qualifiedType(_, CudaHost))) => true 

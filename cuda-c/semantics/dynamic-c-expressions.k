@@ -1,3 +1,5 @@
+load cuda-extern
+
 module DYNAMIC-SEMANTICS-EXPRESSIONS-INCLUDE is
 	including DYNAMIC-INCLUDE
 	syntax K ::= "assign" "(" K "," K ")" [klabel(assign)]
@@ -321,6 +323,7 @@ end module
 
 module DYNAMIC-SEMANTICS-FUNCTION-CALLS is
 	including DYNAMIC-SEMANTICS-EXPRESSIONS-INCLUDE
+      including CUDA-EXTERN
 
 	syntax K ::= "application" "(" K "," List{KResult} ")" [strict(1) klabel(application)]
 	/*@ \fromStandard{\source[n1570]{\para{6.5.2.2}{3}}}{
@@ -335,12 +338,25 @@ module DYNAMIC-SEMANTICS-FUNCTION-CALLS is
 	\end{itemize}
 	}}*/
 	
-	rule [function-application-pre]:
+      // CUDA
+	rule [function-application-pre-host]:
 		<k> Call(tv(Loc:Nat, t(_, pointerType(T:KResult))), List(L:List{KResult}))
-			=> application(readFunction(Loc:Nat), L:List{KResult})
+			=> cuda-check-ishost(Loc:Nat)
+			~> application(readFunction(Loc:Nat), L:List{KResult})
 		...</k>
+            <gid> 0 </gid>
 		when isFunctionType(T:KResult)
 		[structural]
+	rule [function-application-pre-device]:
+		<k> Call(tv(Loc:Nat, t(_, pointerType(T:KResult))), List(L:List{KResult}))
+			=> cuda-check-isdevice(Loc:Nat)
+			~> application(readFunction(Loc:Nat), L:List{KResult})
+		...</k>
+            <gid> GId:Nat </gid>
+		when isFunctionType(T:KResult)
+            andBool GId:Nat >Int 0
+		[structural]
+      // end CUDA
 
 	rule [populateFromGlobal]:
 		<k> populateFromGlobal => .K ...</k>

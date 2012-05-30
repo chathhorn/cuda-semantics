@@ -875,7 +875,7 @@ module COMMON-SEMANTICS-TYPE-MISC is
 	// */
 	define isArithmeticType(T:KResult) => hasIntegerType(T:KResult) orBool isFloatType(T:KResult)
 
-      // TODO: is this enough?
+      // TODO: CUDA: is this enough?
 	define unqualifyType(t(_:Set, qualifiedType(T:KResult, _))) => unqualifyType(T:KResult)
 	define unqualifyType(t(_:Set, T:K)) => t(.Set, T:K)
 		when getKLabel(T:K) =/=KLabel 'qualifiedType 

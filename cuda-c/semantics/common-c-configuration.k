@@ -21,6 +21,8 @@ module COMMON-C-CONFIGURATION is
                         <sid> 0 </sid>
                         <streamContents> .K </streamContents>
                   </stream>
+                  <cudaDeviceFunctions> .Set </cudaDeviceFunctions>
+                  <cudaGlobalFunctions> .Set </cudaGlobalFunctions>
                   // CUDA done.
                   
 			// <modelChecking multiplicity="?"> .K </modelChecking>

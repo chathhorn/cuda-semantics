@@ -206,7 +206,8 @@ module COMMON-SEMANTICS-DECLARATIONS-GENERAL is
 	// function definition
 	rule
 		<k> declareFunction(X:Id, T:KResult, K:K)
-			=> declareWithLinkage(X:Id, T:KResult, K:K, external)
+			=> cuda-decl-function(X:Id, T:KResult) 
+                  ~> declareWithLinkage(X:Id, T:KResult, K:K, external)
 		...</k>
 		when notBool isStaticType(T:KResult)
 		andBool K:K =/=K NoInit
@@ -214,7 +215,8 @@ module COMMON-SEMANTICS-DECLARATIONS-GENERAL is
 
 	rule
 		<k> declareFunction(X:Id, T:KResult, NoInit)
-			=> declareWithLinkage(X:Id, t(.Set, prototype(T:KResult)), NoInit, external)
+			=> cuda-decl-function(X:Id, T:KResult) 
+			~> declareWithLinkage(X:Id, t(.Set, prototype(T:KResult)), NoInit, external)
 		...</k>
 		when notBool isStaticType(T:KResult)
 		[structural] 
@@ -222,7 +224,8 @@ module COMMON-SEMANTICS-DECLARATIONS-GENERAL is
 	// fixme not handling internal prototypes
 	rule
 		<k> declareFunction(X:Id, T:KResult, K:K)
-			=> declareWithLinkage(X:Id, T:KResult, K:K, internal)
+			=> cuda-decl-function(X:Id, T:KResult) 
+			~> declareWithLinkage(X:Id, T:KResult, K:K, internal)
 		...</k>
 		<currentFunction> File-Scope </currentFunction>
 		when isStaticType(T:KResult)
