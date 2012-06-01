@@ -2,7 +2,7 @@
 mod #MODEL-CHECK is
 	including #MODEL-CHECKER .
 	including #META-LEVEL .
-	including C .
+	including CU .
 	
 	op state : Bag -> #Model-Checker-State .
 	op k2model : K -> #LTLFormula .
@@ -31,7 +31,7 @@ mod #MODEL-CHECK is
 		downTerm(
 			getTermRP(
 				metaRewrite(
-					upModule('C, false), 
+					upModule('CU, false), 
 					upTerm(
 						B0:Bag
 						< T > B1:Bag
@@ -50,6 +50,6 @@ mod #MODEL-CHECK is
 		)
 	) .
 	
-	--- red getTermRP(metaRewrite(upModule('C, false), upTerm('syntaxNat(Rat 0(.List{K}))), unbounded)) .
+	--- red getTermRP(metaRewrite(upModule('CU, false), upTerm('syntaxNat(Rat 0(.List{K}))), unbounded)) .
 
 endm

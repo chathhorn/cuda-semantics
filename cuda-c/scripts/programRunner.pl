@@ -138,9 +138,9 @@ my $fileMaudeDefinition;
 
 if (defined($ENV{'SEARCH'}) or defined($ENV{'MODELCHECK'})) {
         $isInterp = 0;
-	$fileMaudeDefinition = catfile($SCRIPTS_DIR, "c-total-nd.maude");
+	$fileMaudeDefinition = catfile($SCRIPTS_DIR, "cu-total-nd.maude");
 } else {
-	$fileMaudeDefinition = catfile($SCRIPTS_DIR, "c-total.maude");
+	$fileMaudeDefinition = catfile($SCRIPTS_DIR, "cu-total.maude");
 }
 
 print $fileRunner "load $fileMaudeDefinition\n";
