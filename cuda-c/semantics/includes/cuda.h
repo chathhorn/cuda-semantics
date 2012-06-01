@@ -11,6 +11,10 @@ typedef enum cudaError {
       cudaSuccess = 0,
 } cudaError_t;
 
+typedef struct dim3 {
+      unsigned x, y, z;
+} dim3;
+
 typedef int cudaStream_t;
 
 cudaError_t cudaMalloc(void** devPtr, size_t size);
@@ -22,10 +26,10 @@ cudaError_t cudaDeviceSynchronize(void);
 
 __device__ void __syncthreads(void);
 
-extern int threadIdx;
-extern int blockIdx;
-extern int gridDim;
-extern int blockDim;
+extern dim3 threadIdx;
+extern dim3 blockIdx;
+extern dim3 gridDim;
+extern dim3 blockDim;
 
 /* Stream management. */
 

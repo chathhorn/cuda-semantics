@@ -8,6 +8,9 @@ module CUDA-SEMANTICS is
       ops cuda-success : -> Nat
       macro cuda-success = tv(0, t(.Set, int))
 
+      ops cuda-dim3-type : -> Type
+      macro cuda-dim3-type = t(.Set, structType(Identifier("dim3")))
+
       /*@ Declarations. */
        rule [cuda-declare-shared-dynamic]:
 		<k> declareInternalVariable(X:Id, T:KResult, NoInit)
@@ -88,40 +91,51 @@ module CUDA-SEMANTICS is
                   <properties>... (. => cuda-mdevice) </properties>
             ...</object>
 
-      syntax K ::= "cuda-decl-function-device" "(" Id "," K ")"
-      rule [cuda-decl-function-new]:
+      rule [cuda-decl-function]:
             <k> cuda-decl-function(X:Id, T:KResult) 
-                => cuda-decl-function-device(X:Id, T:KResult) ...</k>
-            <cudaGlobalFunctions> Fs:Set (. => SetItem(X:Id)) </cudaGlobalFunctions>
+                => cuda-decl-function-host(X:Id, T:KResult) 
+                ~> cuda-decl-function-device(X:Id, T:KResult) 
+                ~> cuda-decl-function-global(X:Id, T:KResult) 
+            ...</k>
+
+      syntax K ::= "cuda-decl-function-host" "(" Id "," KResult ")"
+      rule [cuda-decl-function-host]:
+            <k> cuda-decl-function-host(X:Id, T:KResult) => . ...</k>
+            <cudaHostFunctions> Fs:Set (. => SetItem(X:Id)) </cudaHostFunctions>
             when isCudaGlobalType(T:KResult)
             andBool notBool (X:Id in Fs:Set)
-      rule [cuda-decl-function-old]:
-            <k> cuda-decl-function(X:Id, T:KResult) 
-                => cuda-decl-function-device(X:Id, T:KResult) ...</k>
-            <cudaGlobalFunctions> Fs:Set </cudaGlobalFunctions>
-            when isCudaGlobalType(T:KResult)
-            andBool X:Id in Fs:Set
-      rule [cuda-decl-function-not]:
-            <k> cuda-decl-function(X:Id, T:KResult) 
-                => cuda-decl-function-device(X:Id, T:KResult) ...</k>
+      rule [cuda-decl-function-host-not]:
+            <k> cuda-decl-function-host(X:Id, T:KResult) => . ...</k>
+            <cudaHostFunctions> Fs:Set </cudaHostFunctions>
             when notBool isCudaGlobalType(T:KResult)
+            orBool X:Id in Fs:Set
 
-      rule [cuda-decl-function-device-new]:
+      syntax K ::= "cuda-decl-function-device" "(" Id "," KResult ")"
+      rule [cuda-decl-function-device]:
             <k> cuda-decl-function-device(X:Id, T:KResult) => . ...</k>
             <cudaDeviceFunctions> Fs:Set (. => SetItem(X:Id)) </cudaDeviceFunctions>
             when isCudaDeviceType(T:KResult)
             andBool notBool (X:Id in Fs:Set)
-      rule [cuda-decl-function-device-old]:
-            <k> cuda-decl-function-device(X:Id, T:KResult) => . ...</k>
-            <cudaDeviceFunctions> Fs:Set </cudaDeviceFunctions>
-            when isCudaDeviceType(T:KResult)
-            andBool X:Id in Fs:Set
       rule [cuda-decl-function-device-not]:
             <k> cuda-decl-function-device(X:Id, T:KResult) => . ...</k>
+            <cudaDeviceFunctions> Fs:Set </cudaDeviceFunctions>
             when notBool isCudaDeviceType(T:KResult)
+            orBool X:Id in Fs:Set
+
+      syntax K ::= "cuda-decl-function-global" "(" Id "," KResult ")"
+      rule [cuda-decl-function-global]:
+            <k> cuda-decl-function-global(X:Id, T:KResult) => . ...</k>
+            <cudaGlobalFunctions> Fs:Set (. => SetItem(X:Id)) </cudaGlobalFunctions>
+            when isCudaGlobalType(T:KResult)
+            andBool notBool (X:Id in Fs:Set)
+      rule [cuda-decl-function-global-not]:
+            <k> cuda-decl-function-global(X:Id, T:KResult) => . ...</k>
+            <cudaGlobalFunctions> Fs:Set </cudaGlobalFunctions>
+            when notBool isCudaGlobalType(T:KResult)
+            orBool X:Id in Fs:Set
 
       // call, nblocks, threads per block, nshared, stream
-      syntax K ::= "cuda-launch-kernel" "(" K "," Nat "," Nat "," Nat "," Nat ")"
+      syntax K ::= "cuda-launch-kernel" "(" K "," K "," K "," Nat "," Nat ")" [strict(2 3)]
                   // grid id, blocks left to spawn, threads left to spawn.
                   | "cuda-launch-threads" "(" Nat "," Nat "," Nat ")"
                   | "cuda-launch-thread" "(" K "," Nat "," Nat "," Nat ")"
@@ -136,28 +150,50 @@ module CUDA-SEMANTICS is
 
       syntax K ::= "cuda-put-in-stream" "(" K "," Nat ")" 
 
+      syntax KResult ::= "cuda-dim3" "(" Nat "," Nat "," Nat ")"
+
+      syntax K ::= "cuda-get-dim3" "(" KResult ")"
+      rule [cuda-get-dim3-struct]:
+            <k> cuda-get-dim3(tv(V:List{K}, T:KResult)) 
+                 => cuda-dim3-aux(tv(V:List{K}, T:KResult) . Identifier("x"), 
+                                  tv(V:List{K}, T:KResult) . Identifier("y"), 
+                                  tv(V:List{K}, T:KResult) . Identifier("z"))
+            ...</k>
+            when T:KResult ==K cuda-dim3-type
+      rule [cuda-get-dim3-int]:
+            <k> cuda-get-dim3(tv(N:Nat, T:KResult)) 
+                 => cuda-dim3(N:Nat, 1, 1)
+            ...</k>
+            when hasIntegerType(T:KResult)
+
+      syntax K ::= "cuda-dim3-aux" "(" KResult "," KResult "," KResult ")" [strict]
+      rule cuda-dim3-aux(tv(V0:Nat, T:KResult), tv(V1:Nat, T:KResult), tv(V2:Nat, T:KResult))
+            => cuda-dim3(V0:Nat, V1:Nat, V2:Nat)
+            when hasIntegerType(T:KResult)
+
       rule [cuda-spawn2]:
-           <k> CudaSpawn2(FCall:K, tv(NBlocks:Nat, _), tv(NThreads:Nat, _))
+           <k> CudaSpawn2(FCall:K, Grid:KResult, Block:KResult)
                  => cuda-check-isglobal(FCall:K) 
-                 ~> cuda-launch-kernel(FCall, NBlocks, NThreads, 0, 0)
+                 ~> cuda-launch-kernel(FCall:K, cuda-get-dim3(Grid:KResult), cuda-get-dim3(Block:KResult), 0, 0)
            ...</k>
            <gid> 0 </gid>
            [structural]
       rule [cuda-spawn3]:
-           <k> CudaSpawn3(FCall:K, tv(NBlocks:Nat, _), tv(NThreads:Nat, _), tv(NShared:Nat, _))
+           <k> CudaSpawn3(FCall:K, Grid:KResult, Block:KResult, tv(NShared:Nat, _))
                  => cuda-check-isglobal(FCall:K)
-                 ~> cuda-launch-kernel(FCall, NBlocks, NThreads, NShared, 0)
+                 ~> cuda-launch-kernel(FCall:K, cuda-get-dim3(Grid:KResult), cuda-get-dim3(Block:KResult), NShared:Nat, 0)
            ...</k>
            <gid> 0 </gid>
            [structural]
       rule [cuda-spawn4]:
-           <k> CudaSpawn4(FCall:K, tv(NBlocks:Nat, _), tv(NThreads:Nat, _), tv(NShared:Nat, _), tv(SId:Nat, _))
+           <k> CudaSpawn4(FCall:K, Grid:KResult, Block:KResult, tv(NShared:Nat, _), tv(SId:Nat, _))
                  => cuda-check-isglobal(FCall:K) 
-                 ~> cuda-launch-kernel(FCall:K, NBlocks, NThreads, NShared, SId)
+                 ~> cuda-launch-kernel(FCall:K, cuda-get-dim3(Grid:KResult), cuda-get-dim3(Block:KResult), NShared:Nat, SId:Nat)
            ...</k>
            <gid> 0 </gid>
            [structural]
-
+      
+      // Note that these take a pointer and not the whole Call().
       syntax K ::= "cuda-check-isglobal" "(" K ")" 
       rule [cuda-check-isglobal-pass]:
            <k> cuda-check-isglobal(Call(tv(Loc:Nat, _), _)) => . ...</k>
@@ -166,27 +202,18 @@ module CUDA-SEMANTICS is
            [structural]
       rule [cuda-check-isglobal-fail]:
            < k => finalComputation > cuda-check-isglobal(Call(tv(Loc:Nat, _), _)) ...</ k => finalComputation >
-           (.Bag => <errorCell> Error("90000", "CUDA: Attempting to launch a kernel from a function not marked __global__.") </errorCell>)
+           (.Bag => <errorCell> Error("90000", "CUDA: Attempting to call a device function not marked __global__ from the host.") </errorCell>)
            <functions>... Loc:Nat |-> functionObject(X:Id, _, _) ...</functions>
            <cudaGlobalFunctions> Fs:Set </cudaGlobalFunctions>
            when notBool(X:Id in Fs:Set)
            [structural]
 
+      /*@ A function on the device must be tagged with either __device__ or
+          __global__. */
 
-      // isdevice == ~ishost
-      // Note that these take a pointer and not the whole Call.
-      // TODO: clean this up.
       rule [cuda-check-isdevice-pass]:
            <k> cuda-check-isdevice(Loc:Nat) => . ...</k>
-           <functions>... Loc:Nat |-> functionObject(X:Id, _, _) ...</functions>
-           <cudaGlobalFunctions> GFs:Set </cudaGlobalFunctions>
-           <cudaDeviceFunctions> DFs:Set </cudaDeviceFunctions>
-           when X:Id in GFs:Set
-           orBool X:Id in DFs:Set
-           [structural]
-      rule [cuda-check-isdevice-prototype-pass]:
-           <k> cuda-check-isdevice(Loc:Nat) => . ...</k>
-           <functions>... Loc:Nat |-> functionPrototype(X:Id, _) ...</functions>
+           <functions>... Loc:Nat |-> _:KLabel(X:Id,, _:List{K}) ...</functions>
            <cudaGlobalFunctions> GFs:Set </cudaGlobalFunctions>
            <cudaDeviceFunctions> DFs:Set </cudaDeviceFunctions>
            when X:Id in GFs:Set
@@ -195,67 +222,71 @@ module CUDA-SEMANTICS is
       rule [cuda-check-isdevice-fail]:
            < k => finalComputation > cuda-check-isdevice(Loc:Nat) ...</ k => finalComputation >
            (.Bag => <errorCell> Error("90001", "CUDA: Attempting to call a host function from the device.") </errorCell>)
-           <functions>... Loc:Nat |-> functionObject(X:Id, _, _) ...</functions>
-           <cudaGlobalFunctions> GFs:Set </cudaGlobalFunctions>
-           <cudaDeviceFunctions> DFs:Set </cudaDeviceFunctions>
-           when notBool(X:Id in GFs:Set)
-           andBool notBool(X:Id in DFs:Set)
-           [structural]
-      rule [cuda-check-isdevice-prototype-fail]:
-           < k => finalComputation > cuda-check-isdevice(Loc:Nat) ...</ k => finalComputation >
-           (.Bag => <errorCell> Error("90001", "CUDA: Attempting to call a host function from the device.") </errorCell>)
-           <functions>... Loc:Nat |-> functionPrototype(X:Id, _) ...</functions>
+           <functions>... Loc:Nat |-> _:KLabel(X:Id,, _:List{K}) ...</functions>
            <cudaGlobalFunctions> GFs:Set </cudaGlobalFunctions>
            <cudaDeviceFunctions> DFs:Set </cudaDeviceFunctions>
            when notBool(X:Id in GFs:Set)
            andBool notBool(X:Id in DFs:Set)
            [structural]
 
+      /*@ A function on the host might not have a __host__ tag. Also, note that
+          a function with both __host__ and __device__ is valid. */
+
       rule [cuda-check-ishost-pass]:
            <k> cuda-check-ishost(Loc:Nat) => . ...</k>
-           <functions>... Loc:Nat |-> functionObject(X:Id, _, _) ...</functions>
+           <functions>... Loc:Nat |-> _:KLabel(X:Id,, _:List{K}) ...</functions>
            <cudaGlobalFunctions> GFs:Set </cudaGlobalFunctions>
            <cudaDeviceFunctions> DFs:Set </cudaDeviceFunctions>
-           when notBool(X:Id in GFs:Set)
-           andBool notBool(X:Id in DFs:Set)
-           [structural]
-      rule [cuda-check-ishost-prototype-pass]:
-           <k> cuda-check-ishost(Loc:Nat) => . ...</k>
-           <functions>... Loc:Nat |-> functionPrototype(X:Id, _) ...</functions>
-           <cudaGlobalFunctions> GFs:Set </cudaGlobalFunctions>
-           <cudaDeviceFunctions> DFs:Set </cudaDeviceFunctions>
-           when notBool(X:Id in GFs:Set)
-           andBool notBool(X:Id in DFs:Set)
+           <cudaHostFunctions> HFs:Set </cudaHostFunctions>
+           when (X:Id in HFs:Set)
+           orBool (notBool(X:Id in GFs:Set) andBool notBool(X:Id in DFs:Set))
            [structural]
       rule [cuda-check-ishost-fail]:
            < k => finalComputation > cuda-check-ishost(Loc:Nat) ...</ k => finalComputation >
            (.Bag => <errorCell> Error("90002", "CUDA: Attempting to call a device function from the host.") </errorCell>)
-           <functions>... Loc:Nat |-> functionObject(X:Id, _, _) ...</functions>
-           <cudaGlobalFunctions> GFs:Set </cudaGlobalFunctions>
-           <cudaDeviceFunctions> DFs:Set </cudaDeviceFunctions>
-           when X:Id in GFs:Set
-           orBool X:Id in DFs:Set
-           [structural]
-      rule [cuda-check-ishost-prototype-fail]:
-           < k => finalComputation > cuda-check-ishost(Loc:Nat) ...</ k => finalComputation >
-           (.Bag => <errorCell> Error("90002", "CUDA: Attempting to call a device function from the host.") </errorCell>)
-           <functions>... Loc:Nat |-> functionPrototype(X:Id, _) ...</functions>
+           <functions>... Loc:Nat |-> _:KLabel(X:Id,, _:List{K}) ...</functions>
            <cudaGlobalFunctions> GFs:Set </cudaGlobalFunctions>
            <cudaDeviceFunctions> DFs:Set </cudaDeviceFunctions>
            when X:Id in GFs:Set
            orBool X:Id in DFs:Set
            [structural]
 
-      rule < k => finalComputation > cuda-launch-kernel(_, 0, _, _, _) ...</ k => finalComputation > 
+      rule < k => finalComputation > cuda-launch-kernel(_, cuda-dim3(X:Nat, Y:Nat, Z:Nat), _, _, _) ...</ k => finalComputation > 
            (.Bag => <errorCell> Error("90003", "CUDA: Kernel launch with NBlocks zero.") </errorCell>)
-      rule < k => finalComputation > cuda-launch-kernel(_, _, 0, _, _) ...</ k => finalComputation > 
+           when (X:Nat *Int Y:Nat *Int Z:Nat) ==Int 0
+      rule < k => finalComputation > cuda-launch-kernel(_, _, cuda-dim3(X:Nat, Y:Nat, Z:Nat), _, _) ...</ k => finalComputation > 
            (.Bag => <errorCell> Error("90004", "CUDA: Kernel launch with NThreads zero.") </errorCell>)
+           when (X:Nat *Int Y:Nat *Int Z:Nat) ==Int 0
 
-      // TODO: return value.
-      rule <k> cuda-launch-kernel(FCall:K, NBlocks:Nat, NThreads:Nat, NShared:Nat, SId:Nat) 
-               => cuda-put-in-stream(cuda-next-grid(GId), SId) ~> cuda-success ...</k>
+      // This is used to store data about the grid and block dimensions in the
+      // <cudaGrid/BlockDim> cell. The first parameter is the location of an
+      // allocated dim3 struct, the second a cuda-dim3() for easy access to the
+      // dimensions.
+      syntax KResult ::= "cuda-dim-info" "(" K "," KResult ")"
+
+      syntax K ::= "cuda-put-gridDim" "(" Nat "," KResult ")"
+                 | "cuda-put-blockDim" "(" Nat "," KResult ")"
+
+      context cuda-put-gridDim(_, cuda-dim-info(HOLE, _))
+      context cuda-put-blockDim(_, cuda-dim-info(HOLE, _))
+
+      rule [cuda-put-gridDim]:
+            <k> cuda-put-gridDim(GId:Nat, GridDimInfo:KResult) => . ...</k>
+            <cudaGridDim> GridDims:Map => GridDims:Map[GridDimInfo:KResult / GId:Nat] </cudaGridDim>
+      rule [cuda-put-blockDim]:
+            <k> cuda-put-blockDim(GId:Nat, BlockDimInfo:KResult) => . ...</k>
+            <cudaBlockDim> BlockDims:Map => BlockDims:Map[BlockDimInfo:KResult / GId:Nat] </cudaBlockDim>
+
+      rule <k> cuda-launch-kernel(FCall:K, cuda-dim3(GridX:Nat, GridY:Nat, _), cuda-dim3(BlockX:Nat, BlockY:Nat, BlockZ:Nat), NShared:Nat, SId:Nat) 
+               => cuda-put-gridDim(GId:Nat, cuda-dim-info(cuda-new-dim3(cuda-dim3(GridX:Nat, GridY:Nat, 1)), cuda-dim3(GridX:Nat, GridY:Nat, 1)))
+               ~> cuda-put-blockDim(GId:Nat, cuda-dim-info(cuda-new-dim3(cuda-dim3(BlockX:Nat, BlockY:Nat, BlockZ:Nat)), cuda-dim3(BlockX:Nat, BlockY:Nat, BlockZ:Nat)))
+               ~> cuda-put-in-stream(cuda-next-grid(GId), SId) ~> cuda-success ...</k>
            <nextGid> GId:Nat => GId +Int 1 </nextGid> 
            <grids>... (. => GId |-> cuda-grid(FCall, NBlocks, NThreads, NShared)) ...</grids>
+           when GridX >Int 0 andBool GridY >Int 0
+           andBool BlockX >Int 0 andBool BlockY >Int 0 andBool BlockZ >Int 0
+           where NThreads = BlockX *Int BlockY *Int BlockZ
+           and NBlocks = GridX *Int GridY
 
       rule <streamContents> cuda-next-grid(GId:Nat) =>
             cuda-launch-threads(GId, NBlocks -Int 1, NThreads -Int 1) ...</streamContents>
@@ -264,9 +295,10 @@ module CUDA-SEMANTICS is
        rule [cuda-launch-thread]:
             <streamContents> cuda-launch-thread(TBody:K, GId:Nat, BId:Nat, TId:Nat) => . ...</streamContents>
             <grids> ... GId |-> cuda-grid(_, _, _, NShared:Nat) ... </grids>
-            // TODO: must we clone the main thread?
             <nextThreadId> ThreadId:Nat => ThreadId +Int 1</nextThreadId>
             <threadStatus> Status:Map => Status[threadRunning / ThreadId] </threadStatus>
+            <cudaGridDim>... GId:Nat |-> cuda-dim-info(_, GridDim:KResult) ...</cudaGridDim>
+            <cudaBlockDim>... GId:Nat |-> cuda-dim-info(_, BlockDim:KResult) ...</cudaBlockDim>
             <thread>
                   <gid> 0 </gid>
                   <bid> 0 </bid>
@@ -286,14 +318,18 @@ module CUDA-SEMANTICS is
             </thread>
             (.Bag =>
             <thread>
-                  <gid> GId </gid>
-                  <bid> BId </bid>
-                  <tid> TId </tid> 
+                  <gid> GId:Nat </gid>
+                  <bid> BId:Nat </bid>
+                  <tid> TId:Nat </tid> 
                   <threadAccess> cuda-access-device-read cuda-access-device-write </threadAccess>
                   <nextLoc> loc(threadId(ThreadId) +Int 0, 0, 0) </nextLoc>
                   <threadId> ThreadId </threadId>
                   C:Bag
-                  <k> cuda-alloc-shared(Identifier("$dynamic"), NShared:Nat) ~> TBody:K </k>
+                  <k> cuda-alloc-shared(Identifier("$dynamic"), NShared:Nat) 
+                        ~> cuda-put-blockIdx(cuda-new-dim3(cuda-dim1-to-dim3(BId:Nat, GridDim:KResult)))
+                        ~> cuda-put-threadIdx(cuda-new-dim3(cuda-dim1-to-dim3(TId:Nat, BlockDim:KResult)))
+                        ~> TBody:K 
+                  </k>
                   <threadLocal>
                         <callStack> .List </callStack>
                         <control>
@@ -302,7 +338,65 @@ module CUDA-SEMANTICS is
                   </threadLocal>
             </thread>)
             [computational]
- 
+
+
+      /*@ BlockIdx/ThreadIdx initialization. */
+
+      syntax K ::= "cuda-put-blockIdx" "(" K ")" [strict]
+                 | "cuda-put-threadIdx" "(" K ")" [strict]
+
+      rule [cuda-put-blockIdx]:
+            <k> cuda-put-blockIdx(Loc:KResult) => . ...</k>
+            <blockIdx> _ => Loc:KResult </blockIdx>
+      rule [cuda-put-threadIdx]:
+            <k> cuda-put-threadIdx(Loc:KResult) => . ...</k>
+            <threadIdx> _ => Loc:KResult </threadIdx>
+
+      syntax K ::= "cuda-dim1-to-dim3" "(" Nat "," K ")" [strict(2)]
+                 | "cuda-init-dim3" "(" K "," K ")" [strict]
+
+      rule [cuda-dim1-to-dim3]:
+            <k> cuda-dim1-to-dim3(TId:Nat, cuda-dim3(DX:Nat, DY:Nat, DZ:Nat)) 
+                  => cuda-dim3(D0, D1, D2)
+            ...</k>
+            where D0 = TId /Int (DY *Int DZ)
+              and D1 = (TId -Int (D0 *Int DY *Int DZ)) /Int DZ
+              and D2 = TId -Int (D0 *Int DY *Int DZ) -Int (D1 *Int DZ)
+
+      rule [cuda-init-dim3]:
+            <k> cuda-init-dim3(Loc:KResult, cuda-dim3(DX:Nat, DY:Nat, DZ:Nat)) 
+                  => Computation(Loc:KResult . Identifier("x") := DX:Nat)
+                  ~> Computation(Loc:KResult . Identifier("y") := DY:Nat)
+                  ~> Computation(Loc:KResult . Identifier("z") := DZ:Nat)
+            ...</k>
+
+      syntax K ::= "cuda-set-thread-access" "(" Set ")"
+      rule [cuda-set-thread-access]:
+            <k> cuda-set-thread-access(Access:Set) => . ...</k>
+            <threadAccess> _:Set => Access:Set </threadAccess>
+
+      syntax K ::= "cuda-fake-access" "(" K "," Set ")"
+      rule [cuda-fake-access]:
+            <k> cuda-fake-access(K:K, Access:Set)
+                  => cuda-set-thread-access(Access:Set)
+                  ~> K:K
+                  ~> cuda-set-thread-access(OldAccess:Set)
+            ... </k>
+            <threadAccess> OldAccess:Set </threadAccess>
+
+      syntax K ::= "cuda-new-dim3" "(" K ")" [strict]
+      rule [cuda-new-dim3]:
+            <k> cuda-new-dim3(Dim:KResult)
+                 => allocateType(loc(Base:Nat, 0, 0), cuda-dim3-type)
+                 ~> cuda-set-mdevice(loc(Base:Nat, 0, 0))
+                 ~> cuda-fake-access(
+                        cuda-init-dim3(lv(loc(Base:Nat, 0, 0), cuda-dim3-type), Dim:KResult), 
+                        cuda-access-device-read cuda-access-device-write)
+                 ~> lv(loc(Base:Nat, 0, 0), cuda-dim3-type)
+            ...</k>
+            <freshNat> Fresh:Nat => Fresh:Nat +Int 1 </freshNat>
+            where Base = threadId(allocatedDuration) +Int Fresh
+            
        /*@ Launch the first thread of a grid. This thread is responsible for
         clearing the stream when it's done executing.*/
 
@@ -318,7 +412,7 @@ module CUDA-SEMANTICS is
 
       rule [cuda-launch-block-head]:
             <streamContents> 
-                  (. => cuda-launch-thread((Computation(FCall) ~> cuda-sync-grid ), GId, BId, 0)) 
+                  (. => cuda-launch-thread((Computation(FCall) ~> cuda-sync-grid), GId, BId, 0)) 
                   ~> cuda-launch-threads(GId:Nat, (BId:Nat => BId -Int 1), (0 => NThreads -Int 1)) 
             ...</streamContents>
             <grids> ... GId |-> cuda-grid(FCall:K, NBlocks:Nat, NThreads:Nat, NShared:Nat) ... </grids>
@@ -336,16 +430,22 @@ module CUDA-SEMANTICS is
             when TId >Int 0
             [structural]
 
-      rule <k> Identifier("threadIdx") => tv(TId:Nat, t(.Set, int)) ...</k>
-            <tid> TId:Nat </tid> 
-      rule <k> Identifier("blockIdx") => tv(BId:Nat, t(.Set, int)) ...</k>
-            <bid> BId:Nat </bid>
-      rule <k> Identifier("gridDim") => tv(NBlocks:Nat, t(.Set, int)) ...</k>
+      /*@ Identifiers accessible from device functions. */
+
+      rule [threadIdx]:
+            <k> Identifier("threadIdx") => Loc:KResult ...</k>
+            <threadIdx> Loc:KResult </threadIdx>
+      rule [blockIdx]:
+            <k> Identifier("blockIdx") => Loc:KResult ...</k>
+            <blockIdx> Loc:KResult </blockIdx>
+      rule [gridDim]:
+            <k> Identifier("gridDim") => Loc:KResult ...</k>
             <gid> GId:Nat </gid>
-            <grids> ... GId |-> cuda-grid(_, NBlocks:Nat, _, _) ... </grids>
-      rule <k> Identifier("blockDim") => tv(NThreads:Nat, t(.Set, int)) ...</k>
+            <cudaGridDim> ... GId:Nat |-> cuda-dim-info(Loc:KResult, _) ... </cudaGridDim>
+      rule [blockDim]:
+            <k> Identifier("blockDim") => Loc:KResult ...</k>
             <gid> GId:Nat </gid>
-            <grids> ... GId |-> cuda-grid(_, _, NThreads:Nat, _) ... </grids>
+            <cudaBlockDim> ... GId:Nat |-> cuda-dim-info(Loc:KResult, _) ... </cudaBlockDim>
 
       /*@ Clear the stream so the next grid can execute. */
 
@@ -377,7 +477,6 @@ module CUDA-SEMANTICS is
 
       /*@ Start the token at thread 0. */
 
-      // TODO: prepareBuiltin?
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
             <thread>... <tid> 0 </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid> 
             <k> prepareBuiltin((Identifier("__syncthreads")), _) => cuda-sync(1, GId, BId, 0, NThreads) ...</k> ...</thread>
@@ -415,14 +514,15 @@ module CUDA-SEMANTICS is
       blocks in the grid (the only time a clash would be possible), then NThreads
       will be different for the grid-level and block-level sync.*/
 
-      rule <grids>... GId |-> cuda-grid(_, NBlocks:Nat, NThreads:Nat, _) ...</grids>
-            <thread>... <gid> GId:Nat </gid> <bid> 0 </bid> <tid> 0 </tid>
-            <k> cuda-sync-grid => Computation(cuda-sync(1, GId, 0, 0, NThreads *Int NBlocks)) ...</k> ...</thread>
-      rule <grids>... GId |-> cuda-grid(_, NBlocks:Nat, NThreads:Nat, _) ...</grids>
-            <thread>... <gid> GId:Nat </gid> <bid> BId:Nat </bid> <tid> TId:Nat </tid>
-            <k> cuda-sync-grid => Computation(cuda-sync(0, GId, 0, (NThreads *Int BId) +Int TId, NThreads *Int NBlocks)) ...</k> ...</thread>
+      rule [cuda-sync-grid-head]:
+            <k> cuda-sync-grid => Computation(cuda-sync(1, GId, 0, 0, NThreads *Int NBlocks)) ...</k>
+            <gid> GId:Nat </gid> <bid> 0 </bid> <tid> 0 </tid>
+            <grids>... GId |-> cuda-grid(_, NBlocks:Nat, NThreads:Nat, _) ...</grids>
+      rule [cuda-sync-grid]:
+            <k> cuda-sync-grid => Computation(cuda-sync(0, GId, 0, (NThreads *Int BId) +Int TId, NThreads *Int NBlocks)) ...</k>
+            <gid> GId:Nat </gid> <bid> BId:Nat </bid> <tid> TId:Nat </tid>
+            <grids>... GId |-> cuda-grid(_, NBlocks:Nat, NThreads:Nat, _) ...</grids>
             when BId >Int 0 orBool TId >Int 0
-
 
       // Cleanup completed threads. 
       // TODO: probably other stuff needs to be done here (free memory,

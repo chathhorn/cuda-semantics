@@ -28,10 +28,11 @@ module CUDA-TYPING
    //   rule [ignore-cuda-device]: t(S:Set, qualifiedType(t(S':Set, T:K), CudaDevice)) 
    //         => t(S:Set S':Set, T:K) 
    //         [structural anywhere]
-      rule [ignore-cuda-host]: t(S:Set, qualifiedType(t(S':Set, T:K), CudaHost)) 
-            => t(S:Set S':Set, T:K) 
-            [structural anywhere]
+   //   rule [ignore-cuda-host]: t(S:Set, qualifiedType(t(S':Set, T:K), CudaHost)) 
+   //         => t(S:Set S':Set, T:K) 
+   //         [structural anywhere]
 
+      declare isCudaHostType : Type -> Bool
       declare isCudaDeviceType : Type -> Bool
       declare isCudaGlobalType : Type -> Bool
 
@@ -64,14 +65,14 @@ module CUDA-TYPING
             when getKLabel(T:K) =/=KLabel 'qualifiedType
             andBool getKLabel(T:K) =/=KLabel 'prototype 
 
-    //  define [isCudaHostType-true]: isCudaHostType(t(_, qualifiedType(_, CudaHost))) => true 
-    //  define [isCudaHostType-prototype]: isCudaHostType(t(_, prototype(T:KResult))) => isCudaHostType(T:KResult) 
-    //  define [isCudaHostType-qualified]: isCudaHostType(t(_, qualifiedType(T:KResult, Q:K))) => isCudaHostType(T:KResult) 
-    //        when getKLabel(Q:K) =/=KLabel 'CudaHost
-    //  define [isCudaHostType-false]: isCudaHostType(t(_, T:K)) => false
+      define [isCudaHostType-true]: isCudaHostType(t(_, qualifiedType(_, CudaHost))) => true 
+      define [isCudaHostType-prototype]: isCudaHostType(t(_, prototype(T:KResult))) => isCudaHostType(T:KResult) 
+      define [isCudaHostType-qualified]: isCudaHostType(t(_, qualifiedType(T:KResult, Q:K))) => isCudaHostType(T:KResult) 
+            when getKLabel(Q:K) =/=KLabel 'CudaHost
+      define [isCudaHostType-false]: isCudaHostType(t(_, T:K)) => false
     //        when getKLabel(T:K) =/=KLabel 'functionType
-    //        andBool getKLabel(T:K) =/=KLabel 'qualifiedType
-    //        andBool getKLabel(T:K) =/=KLabel 'prototype 
+            andBool getKLabel(T:K) =/=KLabel 'qualifiedType
+            andBool getKLabel(T:K) =/=KLabel 'prototype 
 
       // Actually seems like this should just be void.
       rule <type> CudaSpawn2(T:KResult, _, _) => innerType(T) ...</type>

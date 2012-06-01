@@ -11,9 +11,9 @@
 #define NTHREADS_PER_BLOCK 6
 
 __global__ void sum_kernel(int* g_odata, int* g_idata, int run) {
-      __shared__ int shared[NTHREADS_PER_BLOCK];
-      int i, gtid = (blockIdx * blockDim) + threadIdx;
-      int tid = threadIdx;
+      __shared__ int shared[NELEMENTS];
+      int i, gtid = blockIdx.x * blockDim.x + threadIdx.x;
+      int tid = threadIdx.x;
 
       shared[tid] = g_idata[gtid];
       
@@ -34,18 +34,15 @@ __global__ void sum_kernel(int* g_odata, int* g_idata, int run) {
       }
 }
 
-__host__ int main(int argc, char** argv) {
+int main(int argc, char** argv) {
       int* d_idata, *d_odata, *h_data;
       int i;
-
-      void (*fptr)(int*,int*,int);
-
-      fptr = sum_kernel;
+      //dim3 grid = {NBLOCKS, 1, 1};
 
       // Use a different stream for every run.
       cudaStream_t streams[NRUNS];
 
-      h_data = malloc(NELEMENTS * sizeof(int));
+      h_data = (int*)malloc(NELEMENTS * sizeof(int));
 
       printf("INPUT: ");
       for(i = 0; i != NELEMENTS; ++i) {
@@ -73,7 +70,7 @@ __host__ int main(int argc, char** argv) {
 
       for (i = 0; i != NRUNS; ++i) {
             cudaStreamCreate(&streams[i]);
-            fptr<<< NBLOCKS, NTHREADS_PER_BLOCK, NELEMENTS * sizeof(int), streams[i] >>>
+            sum_kernel<<< NBLOCKS, NTHREADS_PER_BLOCK, NELEMENTS * sizeof(int), streams[i] >>>
                   (d_odata, d_idata, i);
       }
       cudaDeviceSynchronize();
@@ -81,6 +78,7 @@ __host__ int main(int argc, char** argv) {
       cudaMemcpyAsync(h_data, d_odata, NRUNS * sizeof(int), cudaMemcpyDeviceToHost, streams[0]);
 
       cudaStreamSynchronize(streams[0]);
+      cudaDeviceSynchronize();
 
       printf("OUTPUT: ");
       for(i = 0; i != NRUNS; ++i) {

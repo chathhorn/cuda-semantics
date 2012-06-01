@@ -5,9 +5,6 @@ module COMMON-C-CONFIGURATION is
 	
 	configuration 
 		<T> 
-                  // <device multiplicity="*">
-                  //<did> 0 </did> // CUDA: device ID.
-
                   // CUDA: the grid id will be unique for every kernel call.
                   <nextGid> 1 </nextGid> 
                   <grids> .Map </grids>
@@ -21,8 +18,13 @@ module COMMON-C-CONFIGURATION is
                         <sid> 0 </sid>
                         <streamContents> .K </streamContents>
                   </stream>
+                  <cudaHostFunctions> .Set </cudaHostFunctions>
                   <cudaDeviceFunctions> .Set </cudaDeviceFunctions>
                   <cudaGlobalFunctions> .Set </cudaGlobalFunctions>
+                  <cudaGridDim> .Map </cudaGridDim>
+                  <cudaBlockDim> .Map </cudaBlockDim>
+                  // <device multiplicity="*">
+                  //<did> 0 </did> // CUDA: device ID.
                   // CUDA done.
                   
 			// <modelChecking multiplicity="?"> .K </modelChecking>
@@ -75,10 +77,14 @@ module COMMON-C-CONFIGURATION is
 			<threads color="yellow">
 				<thread multiplicity="*" color="yellow">
 
-                              <gid> 0 </gid> // CUDA: grid id.
-                              <bid> 0 </bid> // CUDA: block id.
-                              <tid> 0 </tid> // CUDA: thread id.
+                              // CUDA thread stuff.
+                              <gid> 0 </gid> // Grid id.
+                              <bid> 0 </bid> // Block id.
+                              <tid> 0 </tid> // Thread id.
                               <threadAccess> .Set </threadAccess>
+                              <blockIdx> .K </blockIdx>
+                              <threadIdx> .K </threadIdx>
+                              // CUDA stuff done.
 
 					<threadId color="yellow"> 0 </threadId>
 					<nextLoc color="black"> 0 </nextLoc> // should be initialized with a pair (threadId, 0)
