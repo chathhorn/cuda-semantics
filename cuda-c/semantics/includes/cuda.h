@@ -2,13 +2,15 @@
 #define _KCC_CUDA_H
 #include <kccSettings.h>
 
-typedef enum cudaMemcpyKind {
+enum cudaMemcpyKind {
       cudaMemcpyHostToDevice = 1,
       cudaMemcpyDeviceToHost = 2,
-};
+}
 
 typedef enum cudaError {
       cudaSuccess = 0,
+      cudaErrorInvalidResourceHandle = 33,
+      cudaErrorNotReady = 34,
 } cudaError_t;
 
 typedef struct dim3 {
@@ -25,6 +27,13 @@ cudaError_t cudaMemcpyAsync(void* dst, const void* src, size_t count, enum cudaM
 cudaError_t cudaDeviceSynchronize(void);
 
 __device__ void __syncthreads(void);
+__device__ int __syncthreads_count(int predicate);
+__device__ int __syncthreads_and(int predicate);
+__device__ int __syncthreads_or(int predicate);
+
+__device__ void __threadfence_block();
+__device__ void __threadfence();
+__device__ void __threadfence_system();
 
 extern dim3 threadIdx;
 extern dim3 blockIdx;
