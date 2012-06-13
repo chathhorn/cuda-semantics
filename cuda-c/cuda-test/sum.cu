@@ -37,7 +37,8 @@ __global__ void sum_kernel(int* g_odata, int* g_idata, int run) {
 int main(int argc, char** argv) {
       int* d_idata, *d_odata, *h_data;
       int i;
-      //dim3 grid = {NBLOCKS, 1, 1};
+      dim3 grid = dim3(NBLOCKS, 1, 1);
+      dim3 block = dim3(NTHREADS_PER_BLOCK, 1, 1);
 
       // Use a different stream for every run.
       cudaStream_t streams[NRUNS];
@@ -70,7 +71,7 @@ int main(int argc, char** argv) {
 
       for (i = 0; i != NRUNS; ++i) {
             cudaStreamCreate(&streams[i]);
-            sum_kernel<<< NBLOCKS, NTHREADS_PER_BLOCK, NELEMENTS * sizeof(int), streams[i] >>>
+            sum_kernel<<< grid, block, NELEMENTS * sizeof(int), streams[i] >>>
                   (d_odata, d_idata, i);
       }
       cudaDeviceSynchronize();

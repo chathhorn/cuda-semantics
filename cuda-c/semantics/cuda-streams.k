@@ -6,7 +6,8 @@ module CUDA-STREAMS
       including DYNAMIC-C-SEMANTICS
 
       syntax K ::= "cuda-put-in-stream" "(" K "," Nat ")" 
-                  | "cuda-join" "(" Nat ")"
+                 | "cuda-put-in-stream-aux" "(" K "," Nat ")" 
+                 | "cuda-join" "(" Nat ")"
 
       /*@ \subsection{Stream Management} */
 
@@ -25,6 +26,7 @@ module CUDA-STREAMS
 
       /*@ Stream 0 is forever legit. */
 
+      // TODO: I still don't understand the expected behavior of the 0 stream.
       rule <initializedStreams> Streams:Set (. => SetItem(0)) </initializedStreams>
             when notBool(0 in Streams:Set)
 
@@ -65,16 +67,30 @@ module CUDA-STREAMS
             <initializedStreams> Initialized:Set </initializedStreams>
             when notBool(SId in Initialized)
 
+      /*@ Put something in a stream. We synchronize the device before inserting
+      anything into stream zero.*/
+
+      rule [cuda-put-in-stream-zero]:
+            <k> cuda-put-in-stream(Contents:K, 0)
+                  => Computation(cuda-device-synchronize)
+                  ~> cuda-put-in-stream-aux(Contents:K, 0)
+            ...</k>
+      rule [cuda-put-in-stream]:
+            <k> cuda-put-in-stream(Contents:K, SId:Nat)
+                  => cuda-put-in-stream-aux(Contents:K, SId:Nat)
+            ...</k>
+            when SId =/=Int 0
+
       rule [cuda-put-in-existing-stream]:
-           <k> cuda-put-in-stream(Contents:K, SId:Nat) => . ...</k>
-           <initializedStreams>... SetItem(SId:Nat) ...</initializedStreams>
-           <stream>... 
-                 <sid> SId </sid> 
-                 <streamContents> ... (. => Contents) </streamContents> 
+            <k> cuda-put-in-stream-aux(Contents:K, SId:Nat) => . ...</k>
+            <initializedStreams>... SetItem(SId:Nat) ...</initializedStreams>
+            <stream>... 
+                  <sid> SId </sid> 
+                  <streamContents> ... (. => Contents) </streamContents> 
             ...</stream>
-           [structural]
+      [structural]
       rule [cuda-put-in-new-stream]:
-           <k> cuda-put-in-stream(Contents:K, SId:Nat) => . ...</k>
+           <k> cuda-put-in-stream-aux(Contents:K, SId:Nat) => . ...</k>
            <initializedStreams> InitializedStreams:Set </initializedStreams>
            <activeStreams> ActiveStreams:Set (. => SetItem(SId)) </activeStreams>
            (. => <stream>... <sid> SId </sid> 
@@ -84,7 +100,7 @@ module CUDA-STREAMS
            andBool notBool(SId in ActiveStreams:Set)
            [structural]
       rule [cuda-put-in-uninitialized-stream]:
-           < k => finalComputation > cuda-put-in-stream(Contents:K, SId:Nat) 
+           < k => finalComputation > cuda-put-in-stream-aux(Contents:K, SId:Nat) 
            ...</ k => finalComputation >
            (.Bag => <errorCell> Error("90401", "CUDA: Attempting to use an uncreated stream.") </errorCell>)
            <initializedStreams> Streams:Set </initializedStreams>
@@ -95,17 +111,55 @@ module CUDA-STREAMS
       syntax K ::= "cuda-stream-synchronize" "(" Nat ")"
       rule [cudaStreamSynchronize]:
             <k> prepareBuiltin((Identifier("cudaStreamSynchronize")), tv(SId:Nat, _)) 
-                  => cuda-stream-synchronize(SId:Nat) ...</k>
+                  => cuda-stream-synchronize(SId:Nat) 
+            ...</k>
       rule [cuda-stream-synchronize]:
-            <k> cuda-stream-synchronize(SId:Nat) => cuda-success ...</k>
+            <k> cuda-stream-synchronize(SId:Nat) 
+                  => cuda-success 
+            ...</k>
             <initializedStreams>... SetItem(SId) ...</initializedStreams>
             <activeStreams> Streams:Set </activeStreams>
             when notBool(SId in Streams)
       rule [cuda-stream-synchronize-error]:
             <k> cuda-stream-synchronize(SId:Nat) 
-                  => cuda-error-invalid-resource-handle ...</k>
+                  => cuda-error-invalid-resource-handle 
+            ...</k>
             <initializedStreams> Initialized:Set </initializedStreams>
             when notBool(SId in Initialized)
+
+      /*@ Wait for an event to be recorded in a stream. */
+
+      syntax K ::= "cuda-stream-wait-event" "(" Nat ")"
+
+      // TODO: Flags ("must be 0").
+      rule [cudaStreamWaitEvent-existing]:
+            <k> prepareBuiltin((Identifier("cudaStreamWaitEvent")), (tv(SId:Nat, _),,tv(EId:Nat, _),,tv(Flags:Nat, _)))
+                  => cuda-put-in-stream(cuda-stream-wait-event(EId:Nat), SId:Nat)
+                  ~> cuda-success
+            ...</k>
+            <initializedEvents>... SetItem(EId:Nat) ...</initializedEvents>
+            <initializedStreams>... SetItem(SId:Nat) ...</initializedStreams>
+      rule [cudaStreamWaitEvent-non-existing]:
+            <k> prepareBuiltin((Identifier("cudaStreamWaitEvent")), (tv(SId:Nat, _),,tv(EId:Nat, _),,tv(Flags:Nat, _)))
+                  => cuda-error-invalid-resource-handle
+            ...</k>
+            <initializedEvents> InitializedEvents:Set </initializedEvents>
+            <initializedStreams> InitializedStreams:Set </initializedStreams>
+            when notBool (EId:Nat in InitializedEvents:Set)
+            orBool notBool (SId:Nat in InitializedStreams:Set)
+
+      rule [cuda-stream-wait-event]:
+            <streamContents> cuda-stream-wait-event(EId:Nat) 
+                  => .
+            ...</streamContents>
+            <pendingEvents>... EId:Nat |-> PId:Nat ...</pendingEvents>
+            <recordedEvents>... EId:Nat |-> PId:Nat ...</recordedEvents>
+      rule [cuda-stream-wait-event-not-pending]:
+            <streamContents> cuda-stream-wait-event(EId:Nat) 
+                  => .
+            ...</streamContents>
+            <pendingEvents> Pending:Map </pendingEvents>
+            when notBool (EId:Nat in keys Pending)
 
       /*@ Remove defunct streams. */
 
@@ -119,5 +173,114 @@ module CUDA-STREAMS
       rule <k> prepareBuiltin((Identifier("cudaDeviceSynchronize")), _) => cuda-device-synchronize ...</k>
       rule <k> cuda-device-synchronize => cuda-success ...</k>
            <activeStreams> .Set </activeStreams> // i.e., all streams are empty.
+
+      /*@ Events. */
+
+      rule [cudaEventCreate]:
+            <k> prepareBuiltin((Identifier("cudaEventCreate")), ReturnPtrLoc:KResult)
+                  => Computation(*(ReturnPtrLoc) := tv(EId:Nat, t(.Set, int)))
+                  ~> cuda-success
+            ...</k>
+            <nextEid> EId:Nat => EId +Int 1 </nextEid>
+            <initializedEvents>... (. => SetItem(EId)) ...</initializedEvents>
+
+      // TODO: Flags.
+      rule [cudaEventCreateWithFlags]:
+            <k> prepareBuiltin((Identifier("cudaEventCreateWithFlags")), (ReturnPtrLoc:KResult,,tv(Flags:Nat, _)))
+                  => Computation(*(ReturnPtrLoc) := tv(EId:Nat, t(.Set, int)))
+                  ~> cuda-success
+            ...</k>
+            <nextEid> EId:Nat => EId +Int 1 </nextEid>
+            <initializedEvents>... (. => SetItem(EId)) ...</initializedEvents>
+
+      /*@ Destroy event. */
+
+      rule [cudaEventDestory-existing]:
+            <k> prepareBuiltin((Identifier("cudaEventDestroy")), tv(EId:Nat, _))
+                  => cuda-success
+            ...</k>
+            <initializedEvents>... SetItem(EId:Nat) => . ...</initializedEvents>
+      rule [cudaEventDestory-non-existing]:
+            <k> prepareBuiltin((Identifier("cudaEventDestroy")), tv(EId:Nat, _))
+                => cuda-error-invalid-resource-handle
+            ...</k>
+            <initializedEvents> Initialized:Set </initializedEvents>
+            when notBool(EId in Initialized)
+
+      syntax K ::= "cuda-event-record" "(" Nat "," Nat ")"
+
+      rule [cudaEventRecord-existing]:
+            <k> prepareBuiltin((Identifier("cudaEventRecord")), (tv(EId:Nat, _),,tv(SId:Nat, _)))
+                  => cuda-put-in-stream(cuda-event-record(EId:Nat, PId:Nat), SId:Nat)
+            ...</k>
+            <nextPendingId> PId:Nat => PId:Nat +Int 1 </nextPendingId>
+            <initializedEvents>... SetItem(EId:Nat) ...</initializedEvents>
+            <pendingEvents> Pending:Map => Pending:Map[PId:Nat/EId:Nat] </pendingEvents>
+            <recordedEvents> Recorded:Map => Recorded:Map[0/EId:Nat] </recordedEvents>
+      rule [cudaEventRecord-non-existing]:
+            <k> prepareBuiltin((Identifier("cudaEventRecord")), (tv(EId:Nat, _),,tv(SId:Nat, _)))
+                => cuda-error-invalid-resource-handle
+            ...</k>
+            <initializedEvents> Initialized:Set </initializedEvents>
+            when notBool(EId in Initialized)
+
+      rule [cuda-event-record]:
+            <streamContents> cuda-event-record(EId:Nat, PId:Nat) => . ...</streamContents>
+            <pendingEvents>... EId:Nat |-> PId:Nat ...</pendingEvents>
+            <recordedEvents>... EId:Nat |-> (_ => PId:Nat) ...</recordedEvents>
+      rule [cuda-event-record-defunct]:
+            <streamContents> cuda-event-record(EId:Nat, PId:Nat) => . ...</streamContents>
+            <pendingEvents>... EId:Nat |-> CurrentPId:Nat ...</pendingEvents>
+            when PId:Nat =/=Int CurrentPId:Nat
+
+      rule [cudaEventQuery-recorded]:
+            <k> prepareBuiltin((Identifier("cudaEventQuery")), tv(EId:Nat, _))
+                  => cuda-success
+            ...</k>
+            <initializedEvents>... SetItem(EId:Nat) ...</initializedEvents>
+            <pendingEvents>... EId:Nat |-> PId:Nat ...</pendingEvents>
+            <recordedEvents>... EId:Nat |-> PId:Nat ...</recordedEvents>
+      rule [cudaEventQuery-not-pending]:
+            <k> prepareBuiltin((Identifier("cudaEventQuery")), tv(EId:Nat, _))
+                  => cuda-success
+            ...</k>
+            <initializedEvents>... SetItem(EId:Nat) ...</initializedEvents>
+            <pendingEvents> Pending:Map </pendingEvents>
+            when notBool (EId:Nat in keys Pending:Map)
+      rule [cudaEventQuery-existing]:
+            <k> prepareBuiltin((Identifier("cudaEventQuery")), tv(EId:Nat, _))
+                  => cuda-error-not-ready
+            ...</k>
+            <initializedEvents>... SetItem(EId:Nat) ...</initializedEvents>
+            <pendingEvents>... EId:Nat |-> PId:Nat ...</pendingEvents>
+            <recordedEvents>... EId:Nat |-> OldPId:Nat ...</recordedEvents>
+            when PId:Nat =/=Int OldPId:Nat
+      rule [cudaEventQuery-non-existing]:
+            <k> prepareBuiltin((Identifier("cudaEventQuery")), tv(EId:Nat, _))
+                => cuda-error-invalid-resource-handle
+            ...</k>
+            <initializedEvents> Initialized:Set </initializedEvents>
+            when notBool(EId in Initialized)
+
+      rule [cudaEventSynchronize-existing]:
+            <k> prepareBuiltin((Identifier("cudaEventSynchronize")), tv(EId:Nat, _))
+                  => cuda-success
+            ...</k>
+            <initializedEvents>... SetItem(EId:Nat) ...</initializedEvents>
+            <pendingEvents> Pending:Map </pendingEvents>
+            when notBool (EId:Nat in keys Pending:Map)
+      rule [cudaEventSynchronize-recorded]:
+            <k> prepareBuiltin((Identifier("cudaEventSynchronize")), tv(EId:Nat, _))
+                  => cuda-success
+            ...</k>
+            <initializedEvents>... SetItem(EId:Nat) ...</initializedEvents>
+            <pendingEvents>... EId:Nat |-> PId:Nat ...</pendingEvents>
+            <recordedEvents>... EId:Nat |-> PId:Nat ...</recordedEvents>
+      rule [cudaEventSynchronize-non-existing]:
+            <k> prepareBuiltin((Identifier("cudaEventSynchronize")), tv(EId:Nat, _))
+                => cuda-error-invalid-resource-handle
+            ...</k>
+            <initializedEvents> Initialized:Set </initializedEvents>
+            when notBool(EId in Initialized)
 
 end module

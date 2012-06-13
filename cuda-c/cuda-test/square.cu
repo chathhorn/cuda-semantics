@@ -13,11 +13,17 @@ __global__ void square_array(int* a) {
 int main(void) { 
       int* hostptr, *devptr;
       int i;
+      dim3 grid, block;
 
       size_t nbytes = N * sizeof(int); 
 
-      dim3 grid = {1, 1, 1};
-      dim3 block = {1, 1, 1};
+      grid.x = 1;
+      grid.y = 1;
+      grid.z = 1;
+
+      block.x = 1;
+      block.y = 1;
+      block.z = 1;
 
       int nthreads = 4; 
       int nblocks = N/nthreads + !!(N % nthreads);

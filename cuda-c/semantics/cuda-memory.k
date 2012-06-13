@@ -15,6 +15,14 @@ module CUDA-MEMORY is
                   <properties>... (. => cuda-mdevice) </properties>
             ...</object>
 
+      syntax K ::= "cuda-set-mhost" "(" Nat ")"
+      rule [cuda-set-mhost]:
+            <k> cuda-set-mhost(loc(Base:Nat, 0, 0)) => . ...</k>
+            <object>...
+                  <basePtr> Base:Nat </basePtr>
+                  <properties>... (. => cuda-mhost) </properties>
+            ...</object>
+
       /* @ Free shared memory. */
 
       // gid, bid
@@ -41,7 +49,9 @@ module CUDA-MEMORY is
       
       syntax BagItem ::= "cuda-mdevice"
                        | "cuda-mshared"
+                       | "cuda-mhost"
       syntax K ::= "cuda-malloc" "(" Nat ")"
+                 | "cuda-host-alloc" "(" Nat ")"
       rule [cudaMalloc]:
             <k> prepareBuiltin((Identifier("cudaMalloc")), (ReturnPtrLoc:KResult,,tv(Len:Nat, T:KResult)))
                   => Computation(*(ReturnPtrLoc) := cuda-malloc(Len:Nat))
@@ -49,18 +59,31 @@ module CUDA-MEMORY is
             ...</k>
       rule [cuda-malloc]:
             <k> cuda-malloc(Len:Nat) 
-                  => tv(loc(Base, 0, 0), t(.Set, pointerType(t(.Set, void))))
+                  => alloc(Loc, Len:Nat)
+                  ~> cuda-set-mdevice(Loc)
+                  ~> tv(Loc, t(.Set, pointerType(t(.Set, void))))
             ...</k>
-            <malloced>... .Map => loc(Base, 0, 0) |-> Len:Nat ...</malloced>
+            <malloced>... .Map => Loc |-> Len:Nat ...</malloced>
             <freshNat> Fresh:Nat => Fresh:Nat +Int 1 </freshNat>
-            <memory>...
-                  (.Bag => <object>...
-                        <basePtr> Base:Nat </basePtr>
-                        <oLength> Len:Nat </oLength>
-                        <properties> cuda-mdevice </properties>
-                  ...</object>)
-            ...</memory>
-            where Base = threadId(allocatedDuration) +Int Fresh
+		where Loc = loc(threadId(allocatedDuration) +Int Fresh:Nat, 0, 0)
+		[structural]
+
+      rule [cudaHostAlloc]:
+            <k> prepareBuiltin((Identifier("cudaHostAlloc")), (ReturnPtrLoc:KResult,,tv(Len:Nat, T:KResult),,tv(Flags:Nat, _)))
+                  => Computation(*(ReturnPtrLoc) := cuda-host-alloc(Len:Nat))
+                  ~> cuda-success
+            ...</k>
+      rule [cuda-host-alloc]:
+            <k> cuda-host-alloc(Len:Nat) 
+                  => alloc(Loc, Len:Nat)
+                  ~> cuda-set-mdevice(Loc)
+                  ~> cuda-set-mhost(Loc)
+                  ~> tv(Loc, t(.Set, pointerType(t(.Set, void))))
+            ...</k>
+            <malloced>... .Map => Loc |-> Len:Nat ...</malloced>
+            <freshNat> Fresh:Nat => Fresh:Nat +Int 1 </freshNat>
+		where Loc = loc(threadId(allocatedDuration) +Int Fresh:Nat, 0, 0)
+		[structural]
 
       // Just like regular free.
       rule [cudaFree]:
@@ -113,6 +136,8 @@ module CUDA-MEMORY is
             ...</object>
             when notBool(cuda-mdevice in Attr:Bag)
 
+      // TODO: cuda-mhost && cuda-mdevice (accessible from host and device)
+
       rule [cuda-mem-check-pass]:
             <k> cuda-mem-check(Request:SetItem, Access:Set) => . ...</k>
             when Request in Access
@@ -148,14 +173,14 @@ module CUDA-MEMORY is
       rule [cuda-memcpy-h2d]:
             <k> prepareBuiltin((Identifier("cudaMemcpy")), (tv(Dst:Nat, t(_, pointerType(_))),, tv(Src:Nat, t(_, pointerType(_))),, tv(Count:Nat, _),, tv(Kind:Nat, _)))
                   => cuda-put-in-stream(cuda-memcpy-h2d(Dst:Nat, Src:Nat, Count:Nat), 0) 
-                  ~> cuda-stream-synchronize(0)
+                  ~> cuda-device-synchronize
             ...</k>
             when Kind:Nat ==Int cudaMemcpyHostToDevice
             [structural]
       rule [cuda-memcpy-d2h]:
             <k> prepareBuiltin((Identifier("cudaMemcpy")), (tv(Dst:Nat, t(_, pointerType(_))),, tv(Src:Nat, t(_, pointerType(_))),, tv(Count:Nat, _),, tv(Kind:Nat, _)))
                   => cuda-put-in-stream(cuda-memcpy-d2h(Dst:Nat, Src:Nat, Count:Nat), 0) 
-                  ~> cuda-stream-synchronize(0)
+                  ~> cuda-device-synchronize
             ...</k>
             when Kind:Nat ==Int cudaMemcpyDeviceToHost
             [structural]
@@ -231,7 +256,7 @@ module CUDA-MEMORY is
             <k> prepareBuiltin((Identifier("__threadfence")), _)
                   => .
             ...</k>
-      rule [threadfence]:
+      rule [threadfence-system]:
             <k> prepareBuiltin((Identifier("__threadfence_system")), _)
                   => .
             ...</k>

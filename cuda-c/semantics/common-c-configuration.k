@@ -18,11 +18,20 @@ module COMMON-C-CONFIGURATION is
                         <sid> 0 </sid>
                         <streamContents> .K </streamContents>
                   </stream>
+
                   <cudaHostFunctions> .Set </cudaHostFunctions>
                   <cudaDeviceFunctions> .Set </cudaDeviceFunctions>
                   <cudaGlobalFunctions> .Set </cudaGlobalFunctions>
                   <cudaGridDim> .Map </cudaGridDim>
                   <cudaBlockDim> .Map </cudaBlockDim>
+
+                  // CUDA: events.
+                  <nextEid> 1 </nextEid>
+                  <nextPendingId> 1 </nextPendingId>
+                  <initializedEvents> .Set </initializedEvents>
+                  <pendingEvents> .Map </pendingEvents>
+                  <recordedEvents> .Map </recordedEvents>
+
                   // <device multiplicity="*">
                   //<did> 0 </did> // CUDA: device ID.
                   // CUDA done.
