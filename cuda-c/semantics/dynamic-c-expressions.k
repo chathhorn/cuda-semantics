@@ -326,6 +326,7 @@ module DYNAMIC-SEMANTICS-FUNCTION-CALLS is
       including CUDA-EXTERN
 
 	syntax K ::= "application" "(" K "," List{KResult} ")" [strict(1) klabel(application)]
+	syntax K ::= "application'" "(" K "," List{KResult} ")" [strict(1) klabel(application')]
 	/*@ \fromStandard{\source[n1570]{\para{6.5.2.2}{3}}}{
 	A postfix expression followed by parentheses \cinline{()} containing a possibly empty, comma-separated list of expressions is a function call. The postfix expression denotes the called function. The list of expressions specifies the arguments to the function.
 	}*/
@@ -358,9 +359,16 @@ module DYNAMIC-SEMANTICS-FUNCTION-CALLS is
 		[structural]
       // end CUDA
 
+	//@ this extra step is useful for putting the function name in the transition graph
+	rule [call]:
+		<k> application(Fun:KResult, L:List{KResult})
+			=> application'(Fun:KResult, L:List{KResult})
+		...</k>
+		[structural]
+
 	rule [populateFromGlobal]:
 		<k> populateFromGlobal => .K ...</k>
-		<currentTranslationUnit> Tu:K </currentTranslationUnit>
+		<currTU> Tu:K </currTU>
 		<br/>
 		<genv>... Tu:K |-> Map(G:Map) ...</genv> <env> _ => G:Map </env>
 		<gtypes>... Tu:K |-> Map(GT:Map) ...</gtypes> <types> _ => GT:Map </types>
@@ -368,13 +376,13 @@ module DYNAMIC-SEMANTICS-FUNCTION-CALLS is
 		[large structural]
 
 	rule [builtin-application]:
-		<k> application(functionPrototype(X:Id, T:KResult), L:List{KResult})
-			=> application(functionObject(X:Id, T:KResult, handleBuiltin(X:Id, T:KResult)), L:List{KResult})
+		<k> application'(functionPrototype(X:Id, T:KResult), L:List{KResult})
+			=> application'(functionObject(X:Id, T:KResult, handleBuiltin(X:Id, T:KResult)), L:List{KResult})
 		...</k>
 		[structural]
 		
 	rule [function-application]:
-		<k> application(functionObject(X:Id, t(_, functionType(R:KResult, P:List{KResult})), B:K), L:List{KResult}) ~> K:K 
+		<k> application'(functionObject(X:Id, t(_, functionType(R:KResult, P:List{KResult})), B:K), L:List{KResult}) ~> K:K 
 			=> sequencePoint
 			~> populateFromGlobal
 			~> bind(L:List{KResult}, P:List{KResult})
@@ -383,14 +391,14 @@ module DYNAMIC-SEMANTICS-FUNCTION-CALLS is
 		<callStack> .List => ListItem(
 			<stackFrame> C:Bag
 				<continuation> K:K </continuation>
-				<currentTranslationUnit> OldTu:K </currentTranslationUnit>
+				<currTU> OldTu:K </currTU>
 				<stackCurrentFunction> CurrFun:K </stackCurrentFunction>
 				<stackCurrentProgramLoc> CurrLoc:K </stackCurrentProgramLoc>
 			</stackFrame>
 		) ...</callStack>
 		<br/>
 		(<control>
-			<currentTranslationUnit> OldTu:K </currentTranslationUnit>
+			<currTU> OldTu:K </currTU>
 			<currentFunction> CurrFun:K </currentFunction>
 			<currentProgramLoc> CurrLoc:K </currentProgramLoc>
 			C:Bag
@@ -398,7 +406,7 @@ module DYNAMIC-SEMANTICS-FUNCTION-CALLS is
 		=>
 		<control>
 			<currentFunction> X:Id </currentFunction>
-			<currentTranslationUnit> Tu:K </currentTranslationUnit>
+			<currTU> Tu:K </currTU>
 			<currentProgramLoc> CurrLoc:K </currentProgramLoc>
 		...</control>)
 		<functionTranslationUnits>... OldTu:K |-> Map((_ X:Id |-> Tu:K)) ...</functionTranslationUnits>

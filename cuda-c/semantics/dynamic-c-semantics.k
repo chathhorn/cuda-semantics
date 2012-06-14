@@ -25,19 +25,18 @@ module DYNAMIC-C-SEMANTICS-MISC is
 		<k> writeToFD(FD:Nat, N:Nat) => .K ...</k>
 		<fid> FD:Nat </fid>
 		<buff> S:String => S:String +String charString(N:Nat %Int 256) </buff>
-		[structural]
-	// fixme not sure this should be ... on <buf> cell
+		[observable]
 	rule [writeToFD-string]:
 		<k> writeToFD(FD:Nat, S':String) => .K ...</k>
 		<fid> FD:Nat </fid>
-		<buff> S:String => S:String +String S':String ...</buff>
-		[structural]
+		<buff> S:String => S:String +String S':String </buff>
+		[observable]
 	rule [readFromFD-char]:
 		<k> readFromFD(FD:Nat) => tv(charToAscii(firstChar(S:String)), t(.Set, int))  ...</k>
 		<fid> FD:Nat </fid>
 		<buff> S:String => butFirstChar(S:String) </buff>
 		when lengthString(S:String) >Int 0 // don't compare with "" in order to only treat string sort
-		[structural]
+		[observable]
 	rule [readFromFD-empty-buff]:
 		<k> readFromFD(FD:Nat) ...</k>
 		<fid> FD:Nat </fid>
@@ -47,7 +46,7 @@ module DYNAMIC-C-SEMANTICS-MISC is
 		<k> readFromFD(FD:Nat) => tv(-1, t(.Set, int)) ...</k>
 		<fid> FD:Nat </fid>
 		<buff> #EOF </buff>
-		[structural]
+		[observable]
 	rule [make-eof]:
 		"" +String charString(#EOF)
 			=> #EOF
@@ -168,7 +167,7 @@ If they are declared, the parameters to the main function shall obey the followi
 			<threads>
 				<thread>
 					<threadId> 1 </threadId>
-					<nextLoc> loc(threadId(1) +Int 0, 0, 0) </nextLoc>
+					<nextLoc> firstLoc(1) </nextLoc>
 					<k> klistToK(P:List{K})
 							~> DeclarationDefinition(InitNameGroup(Specifier(List(Char)), List(InitName(Name(Identifier("#incomingArgumentsArray"), PointerType(ArrayType(JustBase, syntaxNat((lengthList{K} L:List{K}) +Int 1), Specifier(List(.List{K}))))), NoInit))))
 							~> resolveReferences					
@@ -183,7 +182,7 @@ If they are declared, the parameters to the main function shall obey the followi
 					...</threadLocal>
 				...</thread>
 			</threads>
-			<nextSharedLoc> loc(threadId(0) +Int 0, 0, 0) </nextSharedLoc>
+			<nextSharedLoc> firstLoc(0) </nextSharedLoc>
 		...</T>
 		<files>
 			<fileCommands> #if IsInterp ==Int 0 #then debug #else .K #fi </fileCommands>
@@ -217,28 +216,35 @@ or equivalent;9) or in some other implementation-defined manner
 
 	//@ this bit of indirection is used to check that the main prototype is correct, and to call it with the appropriate arguments
 	
-	rule <k> callMain(N:Nat, X:Id, Args:K)
+	rule [call-main]:
+		<k> callMain(N:Nat, X:Id, Args:K)
 			=> callMain-aux(typeof(Identifier("main")), N:Nat, X:Id, Args:K)
 		...</k>
-		<functionTranslationUnits>... Tu:K |-> Map((_ Identifier("main") |-> Tu:K)) ...</functionTranslationUnits>
-		<currentTranslationUnit> _ => Tu:K </currentTranslationUnit>
-		[structural]
+		<functionTranslationUnits>... 
+			Tu:K |-> Map((_ Identifier("main") |-> Tu:K)) 
+		...</functionTranslationUnits>
+		<currTU> _ => Tu:K </currTU>
+		[computational]
 	
 	// FIXME i think these are slightly different
 	// fixme void isn't supposed to have a name
 	// fixme figure out type of string
-	rule callMain-aux(t(.Set, functionType(t(.Set, int), typedDeclaration(t(.Set, void), _:Id))), N:Nat, X:Id, _) 
-		=> Call(Identifier("main"), List(.List{K}))
+	rule
+		callMain-aux(t(.Set, functionType(t(.Set, int), typedDeclaration(t(.Set, void), _:Id))), N:Nat, X:Id, _) 
+			=> Call(Identifier("main"), List(.List{K}))
 		[structural]
-	rule callMain-aux(t(.Set, functionType(t(.Set, int), .List{K})), N:Nat, X:Id, _) 
-		=> Call(Identifier("main"), List(.List{K}))
+	rule
+		callMain-aux(t(.Set, functionType(t(.Set, int), .List{K})), N:Nat, X:Id, _) 
+			=> Call(Identifier("main"), List(.List{K}))
 		[structural]
-	rule callMain-aux(t(.Set, functionType(t(.Set, int), (typedDeclaration(t(.Set, int), _:Id),, typedDeclaration(t(.Set, incompleteArrayType(t(.Set, pointerType(T:KResult)))), _:Id)))), N:Nat, X:Id, Args:K)
+	rule
+		callMain-aux(t(.Set, functionType(t(.Set, int), (typedDeclaration(t(.Set, int), _:Id),, typedDeclaration(t(.Set, incompleteArrayType(t(.Set, pointerType(T:KResult)))), _:Id)))), N:Nat, X:Id, Args:K)
 			=> Args:K 
 			~> Call(Identifier("main"), List((N:Nat,, X:Id)))
 		when T:KResult ==K t(.Set, char)
 		[structural]
-	rule callMain-aux(t(.Set, functionType(t(.Set, int), (typedDeclaration(t(.Set, int), _:Id),, typedDeclaration(t(.Set, pointerType(t(.Set, pointerType(T:KResult)))), _:Id)))), N:Nat, X:Id, Args:K)
+	rule
+		callMain-aux(t(.Set, functionType(t(.Set, int), (typedDeclaration(t(.Set, int), _:Id),, typedDeclaration(t(.Set, pointerType(t(.Set, pointerType(T:KResult)))), _:Id)))), N:Nat, X:Id, Args:K)
 			=> Args:K 
 			~> Call(Identifier("main"), List((N:Nat,, X:Id)))
 		when T:KResult ==K t(.Set, char)
@@ -264,5 +270,6 @@ or equivalent;9) or in some other implementation-defined manner
 		...</files>
 		(.Bag =>
 			<output> S2:String +String listToString(L:List) +String S2'':String </output>
-		)		
+		)
+		[computational]
 end module

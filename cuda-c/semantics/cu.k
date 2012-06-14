@@ -1,4 +1,4 @@
-load c-syntax
+load cu-syntax
 load dynamic-c-semantics
 
 load cuda-semantics

@@ -32,8 +32,6 @@ module COMMON-C-CONFIGURATION is
                   <pendingEvents> .Map </pendingEvents>
                   <recordedEvents> .Map </recordedEvents>
 
-                  // <device multiplicity="*">
-                  //<did> 0 </did> // CUDA: device ID.
                   // CUDA done.
                   
 			// <modelChecking multiplicity="?"> .K </modelChecking>
@@ -76,8 +74,10 @@ module COMMON-C-CONFIGURATION is
 			<nextSharedLoc color="black"> 0 </nextSharedLoc>
 			<threadInformation color="yellow">
 				<threadStatus color="yellow"> .Map </threadStatus>
-				<joiningMap color="yellow"> .Map </joiningMap>
-				<detachingMap color="yellow"> .Map </detachingMap>
+				//<joiningMap color="yellow"> .Map </joiningMap>
+				//<detachingMap color="yellow"> .Map </detachingMap>
+				<mutexes color="yellow"> .Map </mutexes>
+				<glocks color="yellow"> .Bag </glocks>
 			</threadInformation>
 			// <openFiles color="lightgray"> .Map </openFiles>
 			<programText color="black"> .Map </programText>
@@ -103,6 +103,7 @@ module COMMON-C-CONFIGURATION is
 					<br/>
 					<threadLocal>
 						<callStack color="violet"> .List </callStack> // stack of "control" cells
+						<locks> .Bag </locks>
 						<calculateGotoMap color="cyan">
 							<gotoCalculation multiplicity="*" color="cyan">
 								<computation color="cyan"> .K </computation>
@@ -152,15 +153,13 @@ module COMMON-C-CONFIGURATION is
 							<declarationTypeHolder color="cyan"> .K </declarationTypeHolder> // holds the innermost type while we unroll the type around it
 							
 							// general information
-							<currentTranslationUnit color="lightgray"> "" </currentTranslationUnit>
+							<currTU color="lightgray"> "" </currTU>
 							<currentFunction color="lightgray"> .K </currentFunction>
 							<currentProgramLoc color="black"> .K </currentProgramLoc>
 						</control>
 					</threadLocal>
 				</thread>
 			</threads>
-
-                  //</device>
 		</T>
 		<br/>
 		<xmessages color="black"> .K </xmessages>

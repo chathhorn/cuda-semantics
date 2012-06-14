@@ -16,17 +16,19 @@ K_LATEX_STYLE = $(K_BASE)/core/latex/k.sty
 K_BASE_FILES = $(K_PRELUDE).maude $(K_SOCKETS).maude $(K-PL-BUILTINS).maude $(K_PL_MODEL_CHECKER).maude $(K_PL_META_LEVEL).maude
 K_FILES = $(K_BASE_FILES) $(K_MAUDE)
 
-#COMPILE_C = perl -d:DProf $(K_MAUDE) cu.k -u -language C
+#COMPILE_C = perl -d:DProf $(K_MAUDE) cu.k -u -language CU
 COMPILE_C = $(K_MAUDE) cu.k -u -language CU -anywhere "anywhere" -transition "interpRule"
 # -lib maudeLib/common-c-builtins.maude
 # -transition "computational"
-COMPILE_C_ND = $(K_MAUDE) cu.k -u -language CU -anywhere "anywhere" -transition "computational" -superheat "ndheat" -supercool "ndlocal"
+COMPILE_C_ND = $(K_MAUDE) cu.k -u -language CU -anywhere "anywhere" -transition "observable computational" -superheat "ndheat" -supercool "ndlocal"
+COMPILE_C_ND_THREAD = $(K_MAUDE) cu.k -u -language CU -anywhere "anywhere" -transition "observable computational"
 #-lib maudeLib/common-c-builtins.maude
 
-# chathhorn: adding cuda-syntax.k, cuda-typing.k, and cuda-semantics.k.
-COMMON_C_FILES = c-syntax.k cuda-syntax.k cuda-extern.k cuda-typing.k cuda-memory.k cuda-threads.k cuda-declarations.k cuda-helpers.k cuda-streams.k \
+CUDA_FILES = cuda-semantics.k cuda-syntax.k cuda-extern.k cuda-typing.k cuda-memory.k cuda-threads.k cuda-declarations.k cuda-helpers.k cuda-streams.k
+
+COMMON_C_FILES = cu-syntax.k $(CUDA_FILES) \
 common-c-syntax.k common-c-helpers.k common-c-configuration.k common-c-expressions.k common-c-semantics.k common-c-statements.k common-c-declarations.k common-c-typing.k
-DYNAMIC_C_FILES = cu.k cuda-semantics.k dynamic-c-semantics.k dynamic-c-configuration.k dynamic-c-expressions.k dynamic-c-errors.k dynamic-c-statements.k dynamic-c-conversions.k dynamic-c-typing.k dynamic-c-declarations.k dynamic-c-memory.k dynamic-c-standard-lib.k
+DYNAMIC_C_FILES = cu.k dynamic-c-semantics.k dynamic-c-configuration.k dynamic-c-expressions.k dynamic-c-errors.k dynamic-c-statements.k dynamic-c-conversions.k dynamic-c-typing.k dynamic-c-declarations.k dynamic-c-memory.k dynamic-c-standard-lib.k
 
 LATEX_CLEAN_FILES = temp-c-*.tex temp-c-*.log temp.pdflatex.out *.pdf temp.kpdf.out *.tex *.log *.aux
 K_CLEAN_FILES = *.maude .k kcompile_* \
@@ -51,6 +53,18 @@ ifeq ($(K_BASE),)
 	@exit 1
 endif
 
+
+temp-c-thesis.tex: PDF_FILES=\
+common-c-syntax.k \
+# common-c-configuration.k \
+dynamic-c-conversions.k \
+dynamic-c-expressions.k \
+dynamic-c-statements.k
+temp-c-thesis.tex: PDF_MODULES=`grep -o '^kmod.* is' $(PDF_FILES) | grep -o ' .* '`
+temp-c-thesis.tex: check-vars $(K_MAUDE) c.k $(PDF_FILES)
+	@echo "Creating latex..."
+	$(K_MAUDE) c.k -l C -package-options "style=bubble" -latex $(PDF_MODULES) -output temp-c-thesis 1> temp.kpdf.out
+	
 # k-includes.k: check-vars Makefile
 # @echo > k-includes.k
 #@echo "load $(K_PRELUDE)" >> k-includes.k
@@ -133,7 +147,7 @@ common-c-sized-operations.pdf \
 common-c-statements.pdf \
 common-c-syntax.pdf \
 common-c-typing.pdf \
-c-syntax.pdf \
+cu-syntax.pdf \
 dynamic-c-configuration.pdf \
 dynamic-c-conversions.pdf \
 dynamic-c-declarations.pdf \
@@ -145,7 +159,7 @@ dynamic-c-standard-lib.pdf \
 dynamic-c-statements.pdf \
 dynamic-c-typing.pdf
 
-# c-syntax.pdf
+# cu-syntax.pdf
 #
 
 
@@ -160,16 +174,17 @@ cu-compiled.maude.tmp: cu-compiled.maude.0 maudeLib/modelcheck.maude Makefile
 	@$(INSERT_LINE) $(FIRST_LINE) cu-compiled.maude.1 "load maudeLib/common-c-builtins"
 	@$(APPEND_LINE) cu-compiled.maude.1 "load maudeLib/modelcheck"
 	@$(INSERT_LINE) $(FIRST_LINE) cu-compiled.maude.1 "load $(K_PL_META_LEVEL)"
-#@$(INSERT_LINE) 2 cu-compiled.maude.1 "load $(K_PL_MODEL_CHECKER)"
-#@$(INSERT_LINE) 2 cu-compiled.maude.1 "load $(K_PL_META_LEVEL)"
-#@$(INSERT_LINE) $(FIRST_LINE) cu-compiled.maude.1 "load maudeLib/TCPSupport" 
 	@cp cu-compiled.maude.1 cu-compiled.maude.tmp
 	@echo "Done".
 
 cu-compiled.maude: cu-compiled.maude.tmp
-	@grep -o '^ \(eq\|ceq\|rl\|crl\) .* label [^ ][^ ]* ' cu-compiled.maude.tmp | grep -o ' label [^ ][^ ]*' | grep -o '[^ ]*$$' | sort | uniq -d > duplicateLabels.txt
+# does not get all labels, but will hopefully find duplicates :(
+	@sed -n 's/^ \(eq\|ceq\|rl\|crl\) .* label \([^ ][^ ]*\) .*\(superheated\).*$$/\2:\3/p' cu-compiled.maude.tmp | sort | uniq -d > duplicateLabels.txt
 	@if [ -s duplicateLabels.txt ]; then echo "Error: there are duplicate labels in the semantics.  This could cause profiling to give inaccurate results."; cat duplicateLabels.txt; exit 1; fi
 	@mv cu-compiled.maude.tmp cu-compiled.maude
+
+cu-total.maude: check-vars cu-compiled.maude $(K_BASE_FILES) $(K_TCP).maude Makefile
+	@echo "cu-compiled.maude" | perl $(SCRIPTS_DIR)/slurpFrontEnd.pl > $@
 
 cu-compiled-nd.maude.0: check-vars $(K_FILES) $(COMMON_C_FILES) $(DYNAMIC_C_FILES) $(INSERT_LINE)
 	@echo "Compiling the CUDA definition with nondeterminism..."
@@ -182,32 +197,45 @@ cu-compiled-nd.maude: check-vars cu-compiled-nd.maude.0 $(K_FILES) $(COMMON_C_FI
 	@$(INSERT_LINE) $(FIRST_LINE) cu-compiled-nd.maude.1 "load maudeLib/common-c-builtins"
 	@$(APPEND_LINE) cu-compiled-nd.maude.1 "load maudeLib/modelcheck"
 	@$(INSERT_LINE) $(FIRST_LINE) cu-compiled-nd.maude.1 "load $(K_PL_META_LEVEL)"
-#@$(APPEND_LINE) cu-compiled-nd.maude.1 "load maudeLib/modelcheck"
-#@$(INSERT_LINE) $(FIRST_LINE) cu-compiled-nd.maude.1 "load $(K_PL_META_LEVEL)"
-#@$(INSERT_LINE) 2 cu-compiled-nd.maude "load $(K_PL_MODEL_CHECKER)"
-#@$(INSERT_LINE) 3 cu-compiled-nd.maude "load $(K_SOCKETS)"
-#@$(INSERT_LINE) $(FIRST_LINE) cu-compiled-nd.maude.1 "load maudeLib/TCPSupport"
 	@cp cu-compiled-nd.maude.1 cu-compiled-nd.maude
 	@echo "Done".
-
-cu-total.maude: check-vars cu-compiled.maude $(K_BASE_FILES) $(K_TCP).maude Makefile
-	@echo "cu-compiled.maude" | perl $(SCRIPTS_DIR)/slurpFrontEnd.pl > $@
 
 cu-total-nd.maude: check-vars cu-compiled-nd.maude $(K_BASE_FILES) $(K_TCP).maude Makefile
 	@echo "cu-compiled-nd.maude" | perl $(SCRIPTS_DIR)/slurpFrontEnd.pl > $@
 
-#semantics: cu-total.maude cu-total-nd.maude
+cu-compiled-nd-thread.maude.0: check-vars $(K_FILES) $(COMMON_C_FILES) $(DYNAMIC_C_FILES) $(INSERT_LINE)
+	@echo "Compiling the C definition with thread-nondeterminism..."
+	@$(COMPILE_C_ND_THREAD)
+	@mv cu-compiled.maude cu-compiled-nd-thread.maude.0
+	
+cu-compiled-nd-thread.maude: FIRST_LINE=`perl $(FIRST_LINE_SCRIPT) cu-compiled-nd-thread.maude.0`
+cu-compiled-nd-thread.maude: check-vars cu-compiled-nd-thread.maude.0 $(K_FILES) $(COMMON_C_FILES) $(DYNAMIC_C_FILES) $(INSERT_LINE) Makefile
+	@cp cu-compiled-nd-thread.maude.0 cu-compiled-nd-thread.maude.1
+	@$(INSERT_LINE) $(FIRST_LINE) cu-compiled-nd-thread.maude.1 "load maudeLib/common-c-builtins"
+	@$(APPEND_LINE) cu-compiled-nd-thread.maude.1 "load maudeLib/modelcheck"
+	@$(INSERT_LINE) $(FIRST_LINE) cu-compiled-nd-thread.maude.1 "load $(K_PL_META_LEVEL)"
+	@cp cu-compiled-nd-thread.maude.1 cu-compiled-nd-thread.maude
+	@echo "Done".
+	
+cu-total-nd-thread.maude: check-vars cu-compiled-nd-thread.maude $(K_BASE_FILES) $(K_TCP).maude Makefile
+	@echo "cu-compiled-nd-thread.maude" | perl $(SCRIPTS_DIR)/slurpFrontEnd.pl > $@
+	
+
+
+#semantics: cu-total.maude cu-total-nd.maude cu-total-nd-thread.maude
 semantics: cu-total.maude
 
-fast-nd: cu-total.maude
+fast: cu-total.maude
 	@cp cu-total.maude cu-total-nd.maude
+	@cp cu-total.maude cu-total-nd-thread.maude
 
-fast-normal: cu-total-nd.maude
+nd: cu-total-nd.maude
 	@cp cu-total-nd.maude cu-total.maude
+	@cp cu-total-nd.maude cu-total-nd-thread.maude
 
-fast: cu-total.maude fast-nd
-
-nd: cu-total-nd.maude fast-normal
+thread: cu-total-nd-thread.maude
+	@cp cu-total-nd-thread.maude cu-total.maude
+	@cp cu-total-nd-thread.maude cu-total-nd.maude
 
 clean:
 	rm -rf $(LATEX_CLEAN_FILES) $(K_CLEAN_FILES) program-*-compiled.maude.tmp
