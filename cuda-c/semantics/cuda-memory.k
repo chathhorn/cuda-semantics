@@ -68,6 +68,12 @@ module CUDA-MEMORY is
 		where Loc = loc(threadId(allocatedDuration) +Int Fresh:Nat, 0, 0)
 		[structural]
 
+      rule [cudaMallocHost]:
+            <k> prepareBuiltin((Identifier("cudaMallocHost")), (ReturnPtrLoc:KResult,,tv(Len:Nat, T:KResult)))
+                  => Computation(*(ReturnPtrLoc) := cuda-host-alloc(Len:Nat))
+                  ~> cuda-success
+            ...</k>
+
       rule [cudaHostAlloc]:
             <k> prepareBuiltin((Identifier("cudaHostAlloc")), (ReturnPtrLoc:KResult,,tv(Len:Nat, T:KResult),,tv(Flags:Nat, _)))
                   => Computation(*(ReturnPtrLoc) := cuda-host-alloc(Len:Nat))
@@ -93,12 +99,27 @@ module CUDA-MEMORY is
             ...</k>
             <malloced>... Loc:Nat |-> Len:Nat => .Map ...</malloced>
 
+      rule [cudaFreeHost]:
+            <k> prepareBuiltin((Identifier("cudaFreeHost")), tv(Loc:Nat, t(_, pointerType(_))))
+                  => deleteSizedBlock(Loc:Nat, Len:Nat) 
+                  ~> cuda-success
+            ...</k>
+            <malloced>... Loc:Nat |-> Len:Nat => .Map ...</malloced>
+
       // object properties, thread access
       syntax K ::= "cuda-mem-check" "(" SetItem "," Set ")"
       // TODO: probably not right.
       rule [cuda-read-ignore-unmalloced]:
             <k> cuda-read-check(loc(N:Nat +Int _:Nat, _, _)) => . ...</k>
             when N:Nat =/=K threadId(allocatedDuration) // Ignore everything but malloc'd.
+      rule [cuda-read-ignore-pinned]:
+            <k> cuda-read-check(loc(Base:Nat, _, _)) => . ...</k>
+            <object>...
+                  <basePtr> Base:Nat </basePtr>
+                  <properties> Attr:Bag </properties>
+            ...</object>
+            when cuda-mdevice in Attr:Bag
+            andBool cuda-mhost in Attr:Bag
       rule [cuda-read-check-device]:
             <k> cuda-read-check(loc(Base:Nat, _, _)) => cuda-mem-check(cuda-access-device-read, Access:Set) ...</k>
             <threadAccess> Access:Set </threadAccess>
@@ -107,6 +128,7 @@ module CUDA-MEMORY is
                   <properties> Attr:Bag </properties>
             ...</object>
             when cuda-mdevice in Attr:Bag
+            andBool notBool cuda-mhost in Attr:Bag
       rule [cuda-read-check-host]:
             <k> cuda-read-check(loc(Base:Nat, _, _)) => cuda-mem-check(cuda-access-host-read, Access:Set) ...</k>
             <threadAccess> Access:Set </threadAccess>
@@ -119,6 +141,14 @@ module CUDA-MEMORY is
       rule [cuda-write-ignore-unmalloced]:
             <k> cuda-write-check(loc(N:Nat +Int _:Nat, _, _)) => . ...</k>
             when N:Nat =/=K threadId(allocatedDuration) // Ignore everything but malloc'd.
+      rule [cuda-write-ignore-pinned]:
+            <k> cuda-write-check(loc(Base:Nat, _, _)) => . ...</k>
+            <object>...
+                  <basePtr> Base:Nat </basePtr>
+                  <properties> Attr:Bag </properties>
+            ...</object>
+            when cuda-mdevice in Attr:Bag
+            andBool cuda-mhost in Attr:Bag
       rule [cuda-write-check-device]:
             <k> cuda-write-check(loc(Base:Nat, _, _)) => cuda-mem-check(cuda-access-device-write, Access:Set) ...</k>
             <threadAccess> Access:Set </threadAccess>
@@ -127,6 +157,7 @@ module CUDA-MEMORY is
                   <properties> Attr:Bag </properties>
             ...</object>
             when cuda-mdevice in Attr:Bag
+            andBool notBool cuda-mhost in Attr:Bag
       rule [cuda-write-check-host]:
             <k> cuda-write-check(loc(Base:Nat, _, _)) => cuda-mem-check(cuda-access-host-write, Access:Set) ...</k>
             <threadAccess> Access:Set </threadAccess>
@@ -198,7 +229,7 @@ module CUDA-MEMORY is
             ...</k>
             when Kind:Nat ==Int cudaMemcpyDeviceToHost
             [structural]
-      
+
       // Using a single thread for memory transfers might model the
       // architecture better.
       syntax SetItem ::= "cuda-access-device-read"
@@ -243,6 +274,46 @@ module CUDA-MEMORY is
 
       rule [cuda-memcpy-done]:
             <k> cuda-memcpy(_, _, 0) => . ...</k>
+            [structural]
+
+      /*@ Memset. */
+
+      //                             dst,    val,        count
+      syntax K ::= "cuda-memset" "(" Nat "," KResult "," Nat ")"
+      rule [cudaMemset]:
+            <k> prepareBuiltin((Identifier("cudaMemset")), (tv(Dst:Nat, t(_, pointerType(_))),, Val:KResult,, tv(Count:Nat, _)))
+                  => cuda-put-in-stream(cuda-memset(Dst:Nat, Val:KResult, Count:Nat), 0) 
+                  ~> cuda-success
+            ...</k>
+            [structural]
+
+      rule [cudaMemsetAsync]:
+            <k> prepareBuiltin((Identifier("cudaMemsetAsync")), (tv(Dst:Nat, t(_, pointerType(_))),, Val:KResult,, tv(Count:Nat, _),, tv(SId:Nat, _)))
+                  => cuda-put-in-stream(cuda-memset(Dst:Nat, Val:KResult, Count:Nat), SId:Nat) 
+                  ~> cuda-success
+            ...</k>
+            [structural]
+      
+      rule [cuda-memset]:
+            <streamContents> cuda-memset(Dst:Nat, Val:KResult, Count:Nat) => cuda-join(GId:Nat) ...</streamContents>
+            <nextGid> GId:Nat => GId:Nat +Int 1 </nextGid>
+            <thread> <gid> 0 </gid> <k> _:K </k> <threadAccess> _:Set </threadAccess> C:Bag </thread> // TODO: probably grabbing too much.
+            (.Bag =>
+            <thread>
+                  <k> cuda-memset(Dst:Nat, Val:KResult, Count:Nat) ~> cuda-join(GId:Nat) </k>
+                  <gid> GId:Nat </gid>
+                  <threadAccess> cuda-access-device-write </threadAccess>
+                  C:Bag
+            </thread>)
+
+      rule [cuda-memset-write]:
+            <k> (.K => write(lv(Dst:Nat, t(.Set, char)), tv(Val:Int, t(.Set, char))))
+                  ~> cuda-memset((Dst:Nat => Dst:Nat +Int 1), tv(Val:Int, t(.Set, int)), (Count:Nat => Count:Nat -Int 1))
+            ...</k>
+            [structural]
+
+      rule [cuda-memset-done]:
+            <k> cuda-memset(_, _, 0) => . ...</k>
             [structural]
 
       /*@ Memory Fence Functions */

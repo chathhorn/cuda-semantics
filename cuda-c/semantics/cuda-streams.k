@@ -1,8 +1,10 @@
 load cuda-helpers
+load cuda-devices
 load dynamic-c-semantics
 
 module CUDA-STREAMS
       including CUDA-HELPERS
+      including CUDA-DEVICES
       including DYNAMIC-C-SEMANTICS
 
       syntax K ::= "cuda-put-in-stream" "(" K "," Nat ")" 
@@ -167,13 +169,6 @@ module CUDA-STREAMS
             <streamContents> .K </streamContents> ...</stream> => .)
             <activeStreams> ... (SetItem(SId)=>.) ...</activeStreams>
 
-      /*@ Device synchronization. */
-
-      syntax K ::= "cuda-device-synchronize"
-      rule <k> prepareBuiltin((Identifier("cudaDeviceSynchronize")), _) => cuda-device-synchronize ...</k>
-      rule <k> cuda-device-synchronize => cuda-success ...</k>
-           <activeStreams> .Set </activeStreams> // i.e., all streams are empty.
-
       /*@ Events. */
 
       rule [cudaEventCreate]:
@@ -212,6 +207,7 @@ module CUDA-STREAMS
       rule [cudaEventRecord-existing]:
             <k> prepareBuiltin((Identifier("cudaEventRecord")), (tv(EId:Nat, _),,tv(SId:Nat, _)))
                   => cuda-put-in-stream(cuda-event-record(EId:Nat, PId:Nat), SId:Nat)
+                  ~> cuda-success
             ...</k>
             <nextPendingId> PId:Nat => PId:Nat +Int 1 </nextPendingId>
             <initializedEvents>... SetItem(EId:Nat) ...</initializedEvents>
@@ -282,5 +278,38 @@ module CUDA-STREAMS
             ...</k>
             <initializedEvents> Initialized:Set </initializedEvents>
             when notBool(EId in Initialized)
+
+      // TODO: need to check that StartEId & EndEId both have matching
+      // Pending/Recorded PIds (if you catch my drift).
+      rule [cudaEventElapsedTime-success]:
+            <k> prepareBuiltin((Identifier("cudaEventElapsedTime")), (PtrMs:KResult,,tv(StartEId:Nat, _),,tv(EndEId:Nat, _)))
+                  => Computation(*(PtrMs) := tv(0.0, t(.Set, float)))
+                  ~> cuda-success
+            ...</k>
+            <initializedEvents> Initialized:Set </initializedEvents>
+            <pendingEvents> Pending:Map </pendingEvents>
+            <recordedEvents> Recorded:Map </recordedEvents>
+            when StartEId:Nat in Initialized:Set
+            andBool EndEId:Nat in Initialized:Set
+            andBool StartEId:Nat in keys Recorded:Map
+            andBool EndEId:Nat in keys Recorded:Map
+      rule [cudaEventSynchronize-recorded]:
+            <k> prepareBuiltin((Identifier("cudaEventElapsedTime")), (PtrMs:KResult,,tv(StartEId:Nat, _),,tv(EndEId:Nat, _)))
+                  => cuda-error-not-ready
+            ...</k>
+            <initializedEvents> Initialized:Set </initializedEvents>
+            <pendingEvents> Pending:Map </pendingEvents>
+            <recordedEvents> Recorded:Map </recordedEvents>
+            when StartEId:Nat in Initialized:Set
+            andBool EndEId:Nat in Initialized:Set
+            andBool (notBool StartEId:Nat in keys Recorded:Map
+            orBool notBool EndEId:Nat in keys Recorded:Map)
+      rule [cudaEventSynchronize-non-existing]:
+            <k> prepareBuiltin((Identifier("cudaEventElapsedTime")), (PtrMs:KResult,,tv(StartEId:Nat, _),,tv(EndEId:Nat, _)))
+                => cuda-error-invalid-resource-handle
+            ...</k>
+            <initializedEvents> Initialized:Set </initializedEvents>
+            when notBool (StartEId in Initialized)
+            orBool notBool (EndEId in Initialized)
 
 end module

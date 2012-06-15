@@ -30,18 +30,31 @@ __global__ void sum_kernel(int* g_odata, int* g_idata, int run) {
                   shared[0] += shared[i];
             }
 
-            g_odata[run] += shared[0];
+            if (gtid == 0) {
+                  g_odata[run] = shared[0];
+            } else {
+                  __threadfence();
+                  g_odata[run] += shared[0];
+            }
       }
 }
 
 int main(int argc, char** argv) {
       int* d_idata, *d_odata, *h_data;
       int i;
-      dim3 grid = dim3(NBLOCKS, 1, 1);
-      dim3 block = dim3(NTHREADS_PER_BLOCK, 1, 1);
+      dim3 grid;
+      dim3 block;
 
       // Use a different stream for every run.
       cudaStream_t streams[NRUNS];
+
+      grid.x = NBLOCKS;
+      grid.y = 1;
+      grid.z = 1;
+
+      block.x = NTHREADS_PER_BLOCK;
+      block.y = 1;
+      block.z = 1;
 
       h_data = (int*)malloc(NELEMENTS * sizeof(int));
 
@@ -58,17 +71,13 @@ int main(int argc, char** argv) {
 
       cudaMemcpy(d_idata, h_data, NELEMENTS * sizeof(int), cudaMemcpyHostToDevice);
 
-      // TODO: cudaMemset()?
-      // Zero d_odata.
-      for (i = 0; i != NRUNS; ++i) {
-            h_data[i] = 0;
-      }
-      cudaMemcpy(d_odata, h_data, NRUNS * sizeof(int), cudaMemcpyHostToDevice);
+      cudaMemset(d_odata, 0, NRUNS * sizeof(int));
       
       printf("Launching %d blocks of %d threads each " 
              "to asychronously sum the list above %d times.\n", 
              NBLOCKS, NTHREADS_PER_BLOCK, NRUNS);
 
+      cudaDeviceSynchronize();
       for (i = 0; i != NRUNS; ++i) {
             cudaStreamCreate(&streams[i]);
             sum_kernel<<< grid, block, NELEMENTS * sizeof(int), streams[i] >>>
