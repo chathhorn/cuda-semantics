@@ -90,12 +90,12 @@ module CUDA-DECLARATIONS is
       rule [cuda-decl-function-host]:
             <k> cuda-decl-function-host(X:Id, T:KResult) => . ...</k>
             <cudaHostFunctions> Fs:Set (. => SetItem(X:Id)) </cudaHostFunctions>
-            when isCudaGlobalType(T:KResult)
+            when isCudaHostType(T:KResult)
             andBool notBool (X:Id in Fs:Set)
       rule [cuda-decl-function-host-not]:
             <k> cuda-decl-function-host(X:Id, T:KResult) => . ...</k>
             <cudaHostFunctions> Fs:Set </cudaHostFunctions>
-            when notBool isCudaGlobalType(T:KResult)
+            when notBool isCudaHostType(T:KResult)
             orBool X:Id in Fs:Set
 
       syntax K ::= "cuda-decl-function-device" "(" Id "," KResult ")"

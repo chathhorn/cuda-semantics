@@ -84,34 +84,34 @@ cudaError_t cudaDeviceEnablePeerAccess(int peerDevice, unsigned flags);
 
 /* Math. */
 
-__device__ double asin(double x);
-__device__ double atan(double x);
-__device__ double atan2(double x, double y);
-__device__ double cos(double x);
-__device__ double exp(double x);
-__device__ double floor(double x);
-__device__ double fmod(double x, double y);
-__device__ double log(double x);
-__device__ double sin(double x);
-__device__ double sqrt(double x);
-__device__ double tan(double x);
+__host__ __device__ double asin(double x);
+__host__ __device__ double atan(double x);
+__host__ __device__ double atan2(double x, double y);
+__host__ __device__ double cos(double x);
+__host__ __device__ double exp(double x);
+__host__ __device__ double floor(double x);
+__host__ __device__ double fmod(double x, double y);
+__host__ __device__ double log(double x);
+__host__ __device__ double sin(double x);
+__host__ __device__ double sqrt(double x);
+__host__ __device__ double tan(double x);
 
-__device__ float asinf(float x);
-__device__ float atanf(float x);
-__device__ float atan2f(float x, float y);
-__device__ float cosf(float x);
-__device__ float expf(float x);
-__device__ float floorf(float x);
-__device__ float fmodf(float x, float y);
-__device__ float logf(float x);
-__device__ float sinf(float x);
-__device__ float sqrtf(float x);
-__device__ float tanf(float x);
+__host__ __device__ float asinf(float x);
+__host__ __device__ float atanf(float x);
+__host__ __device__ float atan2f(float x, float y);
+__host__ __device__ float cosf(float x);
+__host__ __device__ float expf(float x);
+__host__ __device__ float floorf(float x);
+__host__ __device__ float fmodf(float x, float y);
+__host__ __device__ float logf(float x);
+__host__ __device__ float sinf(float x);
+__host__ __device__ float sqrtf(float x);
+__host__ __device__ float tanf(float x);
 
-#define __cosf cosf
-#define __expf expf
-#define __logf logf
-#define __sinf sinf
-#define __tanf tanf
+__device__ float __cosf(float x);
+__device__ float __expf(float x);
+__device__ float __logf(float x);
+__device__ float __sinf(float x);
+__device__ float __tanf(float x);
 
 #endif

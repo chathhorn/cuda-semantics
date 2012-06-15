@@ -197,7 +197,7 @@ module DYNAMIC-C-ERRORS is
 	rule [err00021]:
 		< k => finalComputation > Identifier(S:String) ...</ k => finalComputation >
 		<env> M:Map </env>
-		(.Bag => <errorCell> Error("00021", "Trying to look up identifier  " +String S:String +String " , but no such identifier is in scope.") </errorCell>)
+		(.Bag => <errorCell> Error("00021", "Trying to look up identifier " +String S:String +String ", but no such identifier is in scope.") </errorCell>)
 		when notBool $hasMapping(M:Map, Identifier(S:String))
 		[structural]
 		

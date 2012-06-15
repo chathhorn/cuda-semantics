@@ -68,4 +68,37 @@ module CUDA-MATH is
 			=> tv(sinFloat(F:Float), t(.Set, float))
 		...</k>
 		[structural]
+
+      /*@ Single-precision intrinsics. */
+
+	rule [__cosf]:
+		<k> prepareBuiltin((Identifier("__cosf")), tv(F:Float, t(_, float)))
+			=> tv(cosFloat(F:Float), t(.Set, float))
+		...</k>
+		[structural]
+
+	rule [__expf]:
+		<k> prepareBuiltin((Identifier("__expf")), tv(F:Float, t(_, float)))
+			=> tv(expFloat(F:Float), t(.Set, float))
+		...</k>
+		[structural]
+
+	rule [__logf]:
+		<k> prepareBuiltin((Identifier("__logf")), tv(F:Float, t(_, float)))
+			=> tv(logFloat(F:Float), t(.Set, float))
+		...</k>
+		[structural]
+
+	rule [__sinf]:
+		<k> prepareBuiltin((Identifier("__sinf")), tv(F:Float, t(_, float)))
+			=> tv(sinFloat(F:Float), t(.Set, float))
+		...</k>
+		[structural]
+
+	rule [__tanf]:
+		<k> prepareBuiltin((Identifier("__tanf")), tv(F:Float, t(_, float)))
+			=> tv(tanFloat(F:Float), t(.Set, float))
+		...</k>
+            [structural]
+
 end module
