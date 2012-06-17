@@ -249,7 +249,7 @@ module CUDA-MEMORY is
       rule [cuda-memcpy-h2d-stream]:
             <streamContents> cuda-memcpy-h2d(Dst:Nat, Src:Nat, Count:Nat)
                   => cuda-launch-thread(
-                        (cuda-memcpy-h2d(Dst:Nat, Src:Nat, Count:Nat) ~> cuda-join(GId:Nat)),
+                        (cuda-memcpy(Dst:Nat, Src:Nat, Count:Nat) ~> cuda-join(GId:Nat)),
                         GId:Nat, 0, 0,
                         cuda-access-device-write cuda-access-host-read)
                   ~> cuda-join(GId:Nat) 
@@ -258,7 +258,7 @@ module CUDA-MEMORY is
       rule [cuda-memcpy-d2h-stream]:
             <streamContents> cuda-memcpy-d2h(Dst:Nat, Src:Nat, Count:Nat)
                   => cuda-launch-thread(
-                        (cuda-memcpy-h2d(Dst:Nat, Src:Nat, Count:Nat) ~> cuda-join(GId:Nat)),
+                        (cuda-memcpy(Dst:Nat, Src:Nat, Count:Nat) ~> cuda-join(GId:Nat)),
                         GId:Nat, 0, 0,
                         cuda-access-device-read cuda-access-host-write)
                   ~> cuda-join(GId:Nat) 
@@ -325,14 +325,14 @@ module CUDA-MEMORY is
       // Nothing to do with these right now.
       rule [threadfence-block]:
             <k> prepareBuiltin((Identifier("__threadfence_block")), _)
-                  => .
+                  => skipval
             ...</k>
       rule [threadfence]:
             <k> prepareBuiltin((Identifier("__threadfence")), _)
-                  => .
+                  => skipval
             ...</k>
       rule [threadfence-system]:
             <k> prepareBuiltin((Identifier("__threadfence_system")), _)
-                  => .
+                  => skipval
             ...</k>
 end module
