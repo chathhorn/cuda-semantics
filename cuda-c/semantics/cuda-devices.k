@@ -1,7 +1,9 @@
 load cuda-helpers
+load cuda-headers
 load dynamic-c-semantics
 
 module CUDA-DEVICES
+      including CUDA-DEVICES-HEADER
       including CUDA-HELPERS
       including DYNAMIC-C-SEMANTICS
 
@@ -48,7 +50,6 @@ module CUDA-DEVICES
 
       /*@ Device synchronization. */
 
-      syntax K ::= "cuda-device-synchronize"
       rule [cudaDeviceSynchronize]:
             <k> prepareBuiltin((Identifier("cudaDeviceSynchronize")), _) => cuda-device-synchronize ...</k>
       rule [cuda-device-synchronize]:

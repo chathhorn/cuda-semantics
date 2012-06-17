@@ -1,15 +1,20 @@
+load dynamic-c-semantics
 load cuda-helpers
-load cuda-declarations
+load cuda-headers
 
 module CUDA-THREADS is
       including CUDA-HELPERS
-      including CUDA-DECLARATIONS
+      including CUDA-THREADS-HEADER
+      including CUDA-DECLARATIONS-HEADER
+      including CUDA-MEMORY-HEADER
+      including CUDA-STREAMS-HEADER
+      including DYNAMIC-C-SEMANTICS
 
       // call, nblocks, threads per block, nshared, stream
       syntax K ::= "cuda-launch-kernel" "(" K "," K "," K "," Nat "," Nat ")" [strict(2 3)]
                   // grid id, blocks left to spawn, threads left to spawn.
                   | "cuda-launch-threads" "(" Nat "," Nat "," Nat ")"
-                  | "cuda-launch-thread" "(" K "," Nat "," Nat "," Nat ")"
+                  | "cuda-launch-device-thread" "(" K "," Nat "," Nat "," Nat ")"
                   // grid id
                   | "cuda-next-grid" "(" Nat ")"
                   // call, nblocks, nthreads, nshared
@@ -103,13 +108,25 @@ module CUDA-THREADS is
             cuda-launch-threads(GId, NBlocks -Int 1, NThreads -Int 1) ...</streamContents>
             <grids>... GId |-> cuda-grid(_, NBlocks:Nat, NThreads:Nat, _) ...</grids>
  
-       rule [cuda-launch-thread]:
-            <streamContents> cuda-launch-thread(TBody:K, GId:Nat, BId:Nat, TId:Nat) => . ...</streamContents>
+       rule [cuda-launch-device-thread]:
+            <streamContents> cuda-launch-device-thread(TBody:K, GId:Nat, BId:Nat, TId:Nat) 
+                  => cuda-launch-thread(
+                        (cuda-alloc-shared(Identifier("$dynamic"), NShared:Nat) 
+                              ~> cuda-put-blockIdx(cuda-new-dim3(cuda-dim1-to-dim3(BId:Nat, GridDim:KResult)))
+                              ~> cuda-put-threadIdx(cuda-new-dim3(cuda-dim1-to-dim3(TId:Nat, BlockDim:KResult)))
+                              ~> TBody:K),
+                        GId:Nat, BId:Nat, TId:Nat, 
+                        cuda-access-device-read cuda-access-device-write) 
+            ...</streamContents>
             <grids> ... GId |-> cuda-grid(_, _, _, NShared:Nat) ... </grids>
-            <nextThreadId> ThreadId:Nat => ThreadId +Int 1</nextThreadId>
-            <threadStatus> Status:Map => Status[threadRunning / ThreadId] </threadStatus>
             <cudaGridDim>... GId:Nat |-> cuda-dim-info(_, GridDim:KResult) ...</cudaGridDim>
             <cudaBlockDim>... GId:Nat |-> cuda-dim-info(_, BlockDim:KResult) ...</cudaBlockDim>
+       rule [cuda-launch-thread]:
+            <streamContents> cuda-launch-thread(TBody:K, GId:Nat, BId:Nat, TId:Nat, Access:Set) 
+                  => . 
+            ...</streamContents>
+            <nextThreadId> ThreadId:Nat => ThreadId +Int 1</nextThreadId>
+            <threadStatus> Status:Map => Status[threadRunning / ThreadId] </threadStatus>
             <thread>
                   <gid> 0 </gid>
                   <bid> 0 </bid>
@@ -132,15 +149,11 @@ module CUDA-THREADS is
                   <gid> GId:Nat </gid>
                   <bid> BId:Nat </bid>
                   <tid> TId:Nat </tid> 
-                  <threadAccess> cuda-access-device-read cuda-access-device-write </threadAccess>
+                  <threadAccess> Access:Set </threadAccess>
                   <nextLoc> loc(threadId(ThreadId) +Int 0, 0, 0) </nextLoc>
                   <threadId> ThreadId </threadId>
                   C:Bag
-                  <k> cuda-alloc-shared(Identifier("$dynamic"), NShared:Nat) 
-                        ~> cuda-put-blockIdx(cuda-new-dim3(cuda-dim1-to-dim3(BId:Nat, GridDim:KResult)))
-                        ~> cuda-put-threadIdx(cuda-new-dim3(cuda-dim1-to-dim3(TId:Nat, BlockDim:KResult)))
-                        ~> TBody:K 
-                  </k>
+                  <k> TBody:K </k>
                   <threadLocal>
                         <callStack> .List </callStack>
                         <control>
@@ -213,7 +226,7 @@ module CUDA-THREADS is
 
       rule [cuda-launch-grid-head]:
             <streamContents> 
-                  (. => cuda-launch-thread((Computation(FCall) ~> cuda-sync-grid ~> cuda-free-shared ~> cuda-join(GId)), GId, 0, 0))
+                  (. => cuda-launch-device-thread((Computation(FCall) ~> cuda-sync-grid ~> cuda-free-shared ~> cuda-join(GId)), GId, 0, 0))
                   ~> (cuda-launch-threads(GId:Nat, 0, 0) => cuda-join(GId))
             ...</streamContents>
             <grids> ... GId |-> cuda-grid(FCall:K, NBlocks:Nat, NThreads:Nat, NShared:Nat) ... </grids>
@@ -223,7 +236,7 @@ module CUDA-THREADS is
 
       rule [cuda-launch-block-head]:
             <streamContents> 
-                  (. => cuda-launch-thread((Computation(FCall) ~> cuda-sync-grid), GId, BId, 0)) 
+                  (. => cuda-launch-device-thread((Computation(FCall) ~> cuda-sync-grid), GId, BId, 0)) 
                   ~> cuda-launch-threads(GId:Nat, (BId:Nat => BId -Int 1), (0 => NThreads -Int 1)) 
             ...</streamContents>
             <grids> ... GId |-> cuda-grid(FCall:K, NBlocks:Nat, NThreads:Nat, NShared:Nat) ... </grids>
@@ -234,7 +247,7 @@ module CUDA-THREADS is
 
       rule [cuda-launch-other-threads]:
             <streamContents> 
-                  (. => cuda-launch-thread((Computation(FCall) ~> cuda-sync-grid), GId, BId, TId)) 
+                  (. => cuda-launch-device-thread((Computation(FCall) ~> cuda-sync-grid), GId, BId, TId)) 
                   ~> cuda-launch-threads(GId:Nat, BId:Nat, (TId:Nat => TId -Int 1)) 
             ...</streamContents>
             <grids> ... GId |-> cuda-grid(FCall:K, NBlocks:Nat, NThreads:Nat, NShared:Nat) ... </grids>
@@ -329,13 +342,14 @@ module CUDA-THREADS is
             andBool Pred:Nat =/=Int 0
 
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
-           <k> (tv(Count:Nat, _) ~> cuda-sync-type-and) 
-               => tv(1, t(.Set, int)) ...</k>
-           when Count:Nat ==Int NThreads:Nat
+            <k> (tv(Count:Nat, _) ~> cuda-sync-type-and) 
+                  => tv(1, t(.Set, int)) 
+            ...</k>
+            when Count:Nat ==Int NThreads:Nat
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
-           <k> (tv(Count:Nat, _) ~> cuda-sync-type-and) 
-               => tv(0, t(.Set, int)) ...</k>
-           when Count:Nat =/=Int NThreads:Nat
+            <k> (tv(Count:Nat, _) ~> cuda-sync-type-and) 
+                  => tv(0, t(.Set, int)) ...</k>
+            when Count:Nat =/=Int NThreads:Nat
 
       /*@ __syncthreads_or() and __syncthreads_count() are the
         same. */

@@ -1,15 +1,14 @@
 load cuda-helpers
-load cuda-devices
+load cuda-headers
 load dynamic-c-semantics
 
 module CUDA-STREAMS
+      including CUDA-STREAMS-HEADER
       including CUDA-HELPERS
-      including CUDA-DEVICES
+      including CUDA-DEVICES-HEADER
       including DYNAMIC-C-SEMANTICS
 
-      syntax K ::= "cuda-put-in-stream" "(" K "," Nat ")" 
-                 | "cuda-put-in-stream-aux" "(" K "," Nat ")" 
-                 | "cuda-join" "(" Nat ")"
+      syntax K ::= "cuda-put-in-stream-aux" "(" K "," Nat ")" 
 
       /*@ \subsection{Stream Management} */
 

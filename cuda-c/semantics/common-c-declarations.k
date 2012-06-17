@@ -1,4 +1,4 @@
-load cuda-extern
+load cuda-headers
 
 module COMMON-SEMANTICS-DECLARATIONS-INCLUDE is
 	including COMMON-INCLUDE 
@@ -20,7 +20,8 @@ end module
 module COMMON-SEMANTICS-DECLARATIONS-GENERAL is
 	including COMMON-SEMANTICS-DECLARATIONS-INCLUDE 
 
-      including CUDA-EXTERN
+      including CUDA-DECLARATIONS-HEADER
+      including CUDA-TYPING-HEADER
 
 	// c99 6.7.8:9 Except where explicitly stated otherwise, for the purposes of this subclause unnamed members of objects of structure and union type do not participate in initialization.  Unnamed members of structure objects have indeterminate value even after initialization
 	// c99 6.7.8:10 If an object that has automatic storage duration is not initialized explicitly, its value is indeterminate. If an object that has static storage duration is not initialized explicitly, then:

@@ -1,13 +1,15 @@
 load dynamic-c-semantics
 load cuda-helpers
-load cuda-streams
+load cuda-headers
 
 module CUDA-MEMORY is
-      including DYNAMIC-C-SEMANTICS
+      including CUDA-MEMORY-HEADER
+      including CUDA-THREADS-HEADER
+      including CUDA-STREAMS-HEADER
+      including CUDA-DEVICES-HEADER
       including CUDA-HELPERS
-      including CUDA-STREAMS
+      including DYNAMIC-C-SEMANTICS
 
-      syntax K ::= "cuda-set-mdevice" "(" Nat ")"
       rule [cuda-set-mdevice]:
             <k> cuda-set-mdevice(loc(Base:Nat, 0, 0)) => . ...</k>
             <object>...
@@ -15,7 +17,6 @@ module CUDA-MEMORY is
                   <properties>... (. => cuda-mdevice) </properties>
             ...</object>
 
-      syntax K ::= "cuda-set-mhost" "(" Nat ")"
       rule [cuda-set-mhost]:
             <k> cuda-set-mhost(loc(Base:Nat, 0, 0)) => . ...</k>
             <object>...
@@ -23,13 +24,29 @@ module CUDA-MEMORY is
                   <properties>... (. => cuda-mhost) </properties>
             ...</object>
 
+      rule [cuda-alloc-shared-skip]:
+            <k> cuda-alloc-shared(X:Id, _) => . ... </k>
+            <bid> BId:Nat </bid>
+            <gid> GId:Nat </gid>
+            <cudaShared>... 
+                  cuda-shared-loc(GId:Nat, BId:Nat, X:Id) |-> _:Nat
+            ...</cudaShared>
+      rule [cuda-alloc-shared]:
+            <k> cuda-alloc-shared(X:Id, Len:Nat) 
+                  => alloc(loc(Base:Nat, 0, 0), Len)
+                  ~> cuda-set-mdevice(loc(Base:Nat, 0, 0)) 
+            ...</k>
+            <bid> BId:Nat </bid>
+            <gid> GId:Nat </gid>
+            <cudaShared>... 
+                  . => (cuda-shared-loc(GId:Nat, BId:Nat, X:Id) |-> loc(Base:Nat, 0, 0))
+            ...</cudaShared>
+            <freshNat> Fresh:Nat => Fresh:Nat +Int 1 </freshNat>
+            where Base = threadId(allocatedDuration) +Int Fresh
+
       /* @ Free shared memory. */
 
-      // gid, bid
-      syntax K ::= "cuda-shared-loc" "(" Nat "," Nat "," Id ")"
-
       // gid
-      syntax K ::= "cuda-free-shared"
 
       // TODO: Not bothering for now.
       rule [cuda-free-shared]: cuda-free-shared => .
@@ -47,9 +64,6 @@ module CUDA-MEMORY is
 
       /*@ \subsection{Memory stuff.} */
       
-      syntax BagItem ::= "cuda-mdevice"
-                       | "cuda-mshared"
-                       | "cuda-mhost"
       syntax K ::= "cuda-malloc" "(" Nat ")"
                  | "cuda-host-alloc" "(" Nat ")"
       rule [cudaMalloc]:
@@ -232,32 +246,24 @@ module CUDA-MEMORY is
 
       // Using a single thread for memory transfers might model the
       // architecture better.
-      syntax SetItem ::= "cuda-access-device-read"
-                       | "cuda-access-device-write"
-                       | "cuda-access-host-read"
-                       | "cuda-access-host-write"
       rule [cuda-memcpy-h2d-stream]:
-            <streamContents> cuda-memcpy-h2d(Dst:Nat, Src:Nat, Count:Nat) => cuda-join(GId:Nat) ...</streamContents>
+            <streamContents> cuda-memcpy-h2d(Dst:Nat, Src:Nat, Count:Nat)
+                  => cuda-launch-thread(
+                        (cuda-memcpy-h2d(Dst:Nat, Src:Nat, Count:Nat) ~> cuda-join(GId:Nat)),
+                        GId:Nat, 0, 0,
+                        cuda-access-device-write cuda-access-host-read)
+                  ~> cuda-join(GId:Nat) 
+            ...</streamContents>
             <nextGid> GId:Nat => GId:Nat +Int 1 </nextGid>
-            <thread> <gid> 0 </gid> <k> _:K </k> C:Bag </thread> // TODO: probably grabbing too much.
-            (.Bag =>
-            <thread>
-                  <k> cuda-memcpy(Dst:Nat, Src:Nat, Count:Nat) ~> cuda-join(GId:Nat) </k>
-                  <gid> GId:Nat </gid>
-                  <threadAccess> cuda-access-host-read cuda-access-device-write </threadAccess>
-                  C:Bag
-            </thread>)
       rule [cuda-memcpy-d2h-stream]:
-            <streamContents> cuda-memcpy-d2h(Dst:Nat, Src:Nat, Count:Nat) => cuda-join(GId:Nat) ...</streamContents>
+            <streamContents> cuda-memcpy-d2h(Dst:Nat, Src:Nat, Count:Nat)
+                  => cuda-launch-thread(
+                        (cuda-memcpy-h2d(Dst:Nat, Src:Nat, Count:Nat) ~> cuda-join(GId:Nat)),
+                        GId:Nat, 0, 0,
+                        cuda-access-device-read cuda-access-host-write)
+                  ~> cuda-join(GId:Nat) 
+            ...</streamContents>
             <nextGid> GId:Nat => GId:Nat +Int 1 </nextGid>
-            <thread> <gid> 0 </gid> <k> _:K </k> <threadAccess> _:Set </threadAccess> C:Bag </thread> // TODO: probably grabbing too much.
-            (.Bag =>
-            <thread>
-                  <k> cuda-memcpy(Dst:Nat, Src:Nat, Count:Nat) ~> cuda-join(GId:Nat) </k>
-                  <gid> GId:Nat </gid>
-                  <threadAccess> cuda-access-device-read cuda-access-host-write </threadAccess>
-                  C:Bag
-            </thread>)
 
       rule [cuda-memcpy-read]:
             <k> (.K => read(Src:Nat, t(.Set, char)))
@@ -295,16 +301,14 @@ module CUDA-MEMORY is
             [structural]
       
       rule [cuda-memset]:
-            <streamContents> cuda-memset(Dst:Nat, Val:KResult, Count:Nat) => cuda-join(GId:Nat) ...</streamContents>
+            <streamContents> cuda-memset(Dst:Nat, Val:KResult, Count:Nat) 
+                  => cuda-launch-thread(
+                        (cuda-memset(Dst:Nat, Val:KResult, Count:Nat) ~> cuda-join(GId:Nat)),
+                        GId:Nat, 0, 0,
+                        cuda-access-device-write)
+                  ~> cuda-join(GId:Nat) 
+            ...</streamContents>
             <nextGid> GId:Nat => GId:Nat +Int 1 </nextGid>
-            <thread> <gid> 0 </gid> <k> _:K </k> <threadAccess> _:Set </threadAccess> C:Bag </thread> // TODO: probably grabbing too much.
-            (.Bag =>
-            <thread>
-                  <k> cuda-memset(Dst:Nat, Val:KResult, Count:Nat) ~> cuda-join(GId:Nat) </k>
-                  <gid> GId:Nat </gid>
-                  <threadAccess> cuda-access-device-write </threadAccess>
-                  C:Bag
-            </thread>)
 
       rule [cuda-memset-write]:
             <k> (.K => write(lv(Dst:Nat, t(.Set, char)), tv(Val:Int, t(.Set, char))))

@@ -24,7 +24,7 @@ COMPILE_C_ND = $(K_MAUDE) cu.k -u -language CU -anywhere "anywhere" -transition 
 COMPILE_C_ND_THREAD = $(K_MAUDE) cu.k -u -language CU -anywhere "anywhere" -transition "observable computational"
 #-lib maudeLib/common-c-builtins.maude
 
-CUDA_FILES = cuda-semantics.k cuda-syntax.k cuda-extern.k cuda-typing.k cuda-memory.k \
+CUDA_FILES = cuda-headers.k cuda-semantics.k cuda-syntax.k cuda-typing.k cuda-memory.k \
 cuda-threads.k cuda-declarations.k cuda-helpers.k cuda-streams.k cuda-devices.k cuda-math.k
 
 COMMON_C_FILES = cu-syntax.k $(CUDA_FILES) \

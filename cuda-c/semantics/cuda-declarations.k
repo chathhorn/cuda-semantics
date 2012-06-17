@@ -1,11 +1,11 @@
-load common-c-declarations
-load cuda-memory
-load cuda-typing
+load dynamic-c-semantics
+load cuda-headers
 
 module CUDA-DECLARATIONS is
-      including COMMON-C-DECLARATIONS
-      including CUDA-MEMORY
-      including CUDA-TYPING
+      including CUDA-DECLARATIONS-HEADER
+      including DYNAMIC-C-SEMANTICS
+      including CUDA-TYPING-HEADER
+      including CUDA-MEMORY-HEADER
 
       /*@ Declarations. */
        rule [cuda-declare-shared-dynamic]:
@@ -58,27 +58,6 @@ module CUDA-DECLARATIONS is
             where Base = threadId(allocatedDuration) +Int Fresh
 		[structural] 
 
-      syntax K ::= "cuda-alloc-shared" "(" Id "," Nat ")"
-      rule [cuda-alloc-shared-skip]:
-            <k> cuda-alloc-shared(X:Id, _) => . ... </k>
-            <bid> BId:Nat </bid>
-            <gid> GId:Nat </gid>
-            <cudaShared>... 
-                  cuda-shared-loc(GId:Nat, BId:Nat, X:Id) |-> _:Nat
-            ...</cudaShared>
-      rule [cuda-alloc-shared]:
-            <k> cuda-alloc-shared(X:Id, Len:Nat) 
-                  => alloc(loc(Base:Nat, 0, 0), Len)
-                  ~> cuda-set-mdevice(loc(Base:Nat, 0, 0)) 
-            ...</k>
-            <bid> BId:Nat </bid>
-            <gid> GId:Nat </gid>
-            <cudaShared>... 
-                  . => (cuda-shared-loc(GId:Nat, BId:Nat, X:Id) |-> loc(Base:Nat, 0, 0))
-            ...</cudaShared>
-            <freshNat> Fresh:Nat => Fresh:Nat +Int 1 </freshNat>
-            where Base = threadId(allocatedDuration) +Int Fresh
-
       rule [cuda-decl-function]:
             <k> cuda-decl-function(X:Id, T:KResult) 
                 => cuda-decl-function-host(X:Id, T:KResult) 
@@ -123,7 +102,6 @@ module CUDA-DECLARATIONS is
             orBool X:Id in Fs:Set
 
       // Note that these take a pointer and not the whole Call().
-      syntax K ::= "cuda-check-isglobal" "(" K ")" 
       rule [cuda-check-isglobal-pass]:
            <k> cuda-check-isglobal(Call(tv(Loc:Nat, _), _)) => . ...</k>
            <functions>... Loc:Nat |-> functionObject(X:Id, _, _) ...</functions>

@@ -1,4 +1,4 @@
-load cuda-extern
+load cuda-headers
 
 module DYNAMIC-SEMANTICS-EXPRESSIONS-INCLUDE is
 	including DYNAMIC-INCLUDE
@@ -323,7 +323,7 @@ end module
 
 module DYNAMIC-SEMANTICS-FUNCTION-CALLS is
 	including DYNAMIC-SEMANTICS-EXPRESSIONS-INCLUDE
-      including CUDA-EXTERN
+      including CUDA-DECLARATIONS-HEADER
 
 	syntax K ::= "application" "(" K "," List{KResult} ")" [strict(1) klabel(application)]
 	syntax K ::= "application'" "(" K "," List{KResult} ")" [strict(1) klabel(application')]

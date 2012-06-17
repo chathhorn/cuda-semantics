@@ -1,26 +1,25 @@
-load dynamic-c-semantics
-load cuda-extern
+load common-c-typing
+load cuda-headers
 
 module CUDA-TYPING
-      including COMMON-C-TYPING
-      including CUDA-EXTERN
+      including CUDA-TYPING-HEADER
 
-       rule <k> canonicalizeType-aux(B:Bag (BagItem(T:K) => .Bag), _, _, _, (_ (.Bag => BagItem(T:K)))) ...</k>
-             when T:K ==K CudaGlobal
-             orBool T:K ==K CudaDevice
-             orBool T:K ==K CudaHost
-             orBool T:K ==K CudaNoinline
-             orBool T:K ==K CudaConstant
-             orBool T:K ==K CudaShared
-             [structural]
-       rule <k> canonicalizeType-aux(.Bag, (T:KResult => t(.Set, qualifiedType(T:KResult, Q:K))), .Bag, .Bag, (_ (BagItem(Q:K) => .Bag))) ...</k>
-             when Q:K ==K CudaGlobal
-             orBool Q:K ==K CudaDevice
-             orBool Q:K ==K CudaHost
-             orBool Q:K ==K CudaNoinline
-             orBool Q:K ==K CudaConstant
-             orBool Q:K ==K CudaShared
-             [structural]
+      rule <k> canonicalizeType-aux(B:Bag (BagItem(T:K) => .Bag), _, _, _, (_ (.Bag => BagItem(T:K)))) ...</k>
+            when T:K ==K CudaGlobal
+            orBool T:K ==K CudaDevice
+            orBool T:K ==K CudaHost
+            orBool T:K ==K CudaNoinline
+            orBool T:K ==K CudaConstant
+            orBool T:K ==K CudaShared
+            [structural]
+      rule <k> canonicalizeType-aux(.Bag, (T:KResult => t(.Set, qualifiedType(T:KResult, Q:K))), .Bag, .Bag, (_ (BagItem(Q:K) => .Bag))) ...</k>
+            when Q:K ==K CudaGlobal
+            orBool Q:K ==K CudaDevice
+            orBool Q:K ==K CudaHost
+            orBool Q:K ==K CudaNoinline
+            orBool Q:K ==K CudaConstant
+            orBool Q:K ==K CudaShared
+            [structural]
 
    //   rule [ignore-cuda-global]: t(S:Set, qualifiedType(t(S':Set, T:K), CudaGlobal)) 
    //         => t(S:Set S':Set, T:K) 
@@ -31,10 +30,6 @@ module CUDA-TYPING
    //   rule [ignore-cuda-host]: t(S:Set, qualifiedType(t(S':Set, T:K), CudaHost)) 
    //         => t(S:Set S':Set, T:K) 
    //         [structural anywhere]
-
-      declare isCudaHostType : Type -> Bool
-      declare isCudaDeviceType : Type -> Bool
-      declare isCudaGlobalType : Type -> Bool
 
       // TODO: functionType
 
