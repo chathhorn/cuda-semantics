@@ -37,10 +37,11 @@ module COMMON-SEMANTICS-PROCESS-LABELS is
 		<gotoMap> M:Map => M:Map[Map(.Map) / kpair(Tu:K, F:Id)] </gotoMap>
 		<currentFunction> _ => F:Id </currentFunction>
 		<currTU> Tu:K </currTU>
+		<br/>
 		<calculateGotoMap>
 			. => (<gotoCalculation>... <computation> K:K ~> Return(NothingExpression) </computation> ...</gotoCalculation>)
 		</calculateGotoMap>
-		[structural] 
+		[structural large] 
 		
 	rule
 		(<gotoCalculation> <computation> .K </computation> ...</gotoCalculation>) => .Bag
@@ -97,12 +98,15 @@ module COMMON-SEMANTICS-PROCESS-LABELS is
 	//  fixme would like to combine the below rules
 	rule
 		<computation> DeclarationDefinition(InitNameGroup(T:K, List(K:K))) => .K ...</computation>
-		<declarationStack>... .List 
+		<br/>
+		<declarationStack>... 
+			.List 
 			=> ListItem(frozenDeclaration(Depth:Nat, BlockNum:Nat, DeclarationDefinition(InitNameGroup(T:K, List(K:K))))) 
 		</declarationStack>
+		<br/>
 		<nestingDepthGoto> Depth:Nat </nestingDepthGoto>
 		<blockHistoryGoto> ListItem(BlockNum:Nat) ...</blockHistoryGoto>
-		[structural]
+		[structural large]
 	// rule
 		// <computation> DeclarationDefinition(K:K) => .K ...</computation>
 		// <declarationStack>... .List 
@@ -117,18 +121,20 @@ module COMMON-SEMANTICS-PROCESS-LABELS is
 		<declarationStack>... .List 
 			=> ListItem(frozenDeclaration(Depth:Nat, BlockNum:Nat, OnlyTypedef(K:K))) 
 		</declarationStack>
+		<br/>
 		<nestingDepthGoto> Depth:Nat </nestingDepthGoto>
 		<blockHistoryGoto> ListItem(BlockNum:Nat) ...</blockHistoryGoto>
-		[structural] 
+		[structural large] 
 		
 	rule [compute-label-typedef]:
 		<computation> Typedef(K:K) => .K ...</computation>
 		<declarationStack>... .List 
 			=> ListItem(frozenDeclaration(Depth:Nat, BlockNum:Nat, Typedef(K:K))) 
 		</declarationStack>
+		<br/>
 		<nestingDepthGoto> Depth:Nat </nestingDepthGoto>
 		<blockHistoryGoto> ListItem(BlockNum:Nat) ...</blockHistoryGoto>
-		[structural] 
+		[structural large] 
 		
 	rule [compute-label-ignore-non-statement]:
 		<computation> L:KLabel(Args:List{K}) => .K ...</computation>
@@ -180,6 +186,7 @@ module COMMON-SEMANTICS-PROCESS-LABELS is
 			<blockHistoryGoto> ListItem(Num:Nat) OldBlockHistory:List </blockHistoryGoto>
 			<loopStackGoto> OldLoopStack:List </loopStackGoto>
 		</gotoCalculation>
+		<br/>
 		(. =>
 			<gotoCalculation> 
 				<computation> S:K </computation>
@@ -194,14 +201,15 @@ module COMMON-SEMANTICS-PROCESS-LABELS is
 				<loopStackGoto> ListItem(kpair(Num:Nat, (K:K ~> Tail:K))) OldLoopStack:List </loopStackGoto>
 			</gotoCalculation>
 		)
-		[structural]
+		[structural large]
 		
 	rule [compute-label-while-mark]:
 		<computation> (. => S:K ~> loopMarked) ~> While(E:K, S:K) ~> (. => popLoop) ~> K:K </computation>
+		<br/>
 		<computationTail> Tail:K </computationTail>
 		<blockHistoryGoto> ListItem(Num:Nat) ...</blockHistoryGoto>
 		<loopStackGoto> (. => ListItem(kpair(Num:Nat, (K:K ~> Tail:K)))) ...</loopStackGoto>
-		[structural] 
+		[structural large] 
 	rule [compute-label-while-done]:
 		<computation> (loopMarked ~> While(E:K, S:K) => .K) ~> popLoop ~> K:K </computation>
 		[structural] 
@@ -212,6 +220,7 @@ module COMMON-SEMANTICS-PROCESS-LABELS is
 			<computationTail> Tail:K </computationTail>
 			B:Bag
 		</gotoCalculation>
+		<br/>
 		(. =>
 			<gotoCalculation> 
 				<computation> S1:K </computation> 
@@ -226,7 +235,7 @@ module COMMON-SEMANTICS-PROCESS-LABELS is
 				B:Bag 
 			</gotoCalculation>
 		)
-		[structural] 
+		[structural large] 
 		
 	rule [compute-label-switch]:
 		<computation> (Switch(_, E:K, S:K) => S:K ~> popLoop) ~> K:K </computation>
@@ -245,19 +254,22 @@ module COMMON-SEMANTICS-PROCESS-LABELS is
 		<computationTail> Tail:K </computationTail>
 		<loopStackGoto> LoopStack:List </loopStackGoto>
 		<declarationStack> DeclStack:List </declarationStack>
+		<br/>
 		<gotoMap>... kpair(Tu:K, F:Id) |-> Map((M:Map => M:Map[gotoObject(Depth:Nat, BlockHistory:List, (S:K ~> K:K ~> Tail:K), LoopStack:List, DeclStack:List) / Target:Id])) ...</gotoMap>
+		<br/>
 		<currentFunction> F:Id </currentFunction>
 		<currTU> Tu:K </currTU>
 		<nestingDepthGoto> Depth:Nat </nestingDepthGoto>
 		<blockHistoryGoto> BlockHistory:List </blockHistoryGoto>
 		when notBool $hasMapping(M:Map, Target:Id)
-		[structural]
+		[structural large]
 		
 	rule
 		<computation> (Case(SwitchNum:Nat, CaseNum:Nat, Val:K, S:K) => S:K) ~> K:K </computation>
 		<computationTail> Tail:K </computationTail>
 		<loopStackGoto> LoopStack:List </loopStackGoto>
 		<declarationStack> DeclStack:List </declarationStack>
+		<br/>
 		<gotoMap>... kpair(Tu:K, F:Id) |-> Map(
 			(M:Map => (M:Map[caseHelper(CaseNum:Nat) / genLabel(SwitchNum:Nat, Val:K)])[gotoObject(Depth:Nat, BlockHistory:List, (S:K ~> K:K ~> Tail:K), LoopStack:List, DeclStack:List) / caseHelper(CaseNum:Nat)])
 		) ...</gotoMap>
@@ -274,13 +286,17 @@ module COMMON-SEMANTICS-PROCESS-LABELS is
 		<computationTail> Tail:K </computationTail>
 		<loopStackGoto> LoopStack:List </loopStackGoto>
 		<declarationStack> DeclStack:List </declarationStack>
-		<gotoMap>... kpair(Tu:K, F:Id) |-> Map((M:Map => M:Map[gotoObject(Depth:Nat, BlockHistory:List, (S:K ~> K:K ~> Tail:K), LoopStack:List, DeclStack:List) / genLabel(SwitchNum:Nat, l('Default))])) ...</gotoMap>
+		<br/>
+		<gotoMap>... 
+			kpair(Tu:K, F:Id) |-> Map((M:Map => M:Map[gotoObject(Depth:Nat, BlockHistory:List, (S:K ~> K:K ~> Tail:K), LoopStack:List, DeclStack:List) / genLabel(SwitchNum:Nat, l('Default))])) 
+		...</gotoMap>
+		<br/>
 		<currentFunction> F:Id </currentFunction>
 		<currTU> Tu:K </currTU>
 		<nestingDepthGoto> Depth:Nat </nestingDepthGoto>
 		<blockHistoryGoto> BlockHistory:List </blockHistoryGoto>
 		when notBool $hasMapping(M:Map, genLabel(SwitchNum:Nat, l('Default)))
-		[structural]
+		[structural large]
 end module
  
 module COMMON-C-STATEMENTS is

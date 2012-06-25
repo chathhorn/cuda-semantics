@@ -40,7 +40,7 @@ module COMMON-SEMANTIC-SYNTAX is
 	
 	syntax K ::= "checkValidLoc" "(" K ")" [klabel(checkValidLoc)]
 	syntax K ::= "checkDerefLoc" "(" K ")" [klabel(checkDerefLoc)]
-	syntax ListItem ::= "ListItem" "(" BagItem ")" [klabel(ListItem)]
+	syntax ListItem ::= "ListItem" "(" Bag ")" [klabel(ListItem)]
 	declare ListToK : List -> K 
 	syntax K ::= "Map" "(" Map ")" [klabel(Map)] 
 	syntax Nat ::= "piece" "(" Nat "," Nat ")" [klabel(piece)] 
@@ -119,7 +119,7 @@ module COMMON-SEMANTIC-SYNTAX is
 
 	declare isTypeCompatible : K K -> Bool 
 	
-	declare hasBeenPromoted : Type -> Bool
+	declare isPromoted : Type -> Bool
 	// syntax Bool ::= "isPromotedInteger" "(" Type ")" [klabel(isPromotedInteger)]
 	
 	
@@ -288,8 +288,8 @@ module COMMON-SEMANTIC-SYNTAX is
 	syntax K ::= "realloc" "(" K "," K "," K "," K ")" [klabel(realloc)] // should be K K 
 	
 	// these are also used by compound literals
-	syntax KResult ::= "initializerValue" "(" Id "," Type "," K ")" [klabel(initializerValue)] 
-	syntax K ::= "figureInitializer" "(" Id "," K "," K ")" [strict(2) klabel(figureInitializer)] // id, type, initializer
+	syntax KResult ::= "initValue" "(" Id "," Type "," K ")" [klabel(initValue)] 
+	syntax K ::= "figureInit" "(" Id "," K "," K ")" [strict(2) klabel(figureInit)] // id, type, initializer
 	
 		
 	syntax K ::= "append" "(" Nat "," Nat "," Value ")" [klabel(append)] // appends a new subobject to a current object.  this is unsafe and should only be used for variadic functions

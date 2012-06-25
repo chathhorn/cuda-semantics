@@ -12,6 +12,9 @@
 \usepackage{multicol}
 \usepackage{framed}
 
+\pagestyle{empty}
+\setlength{\textwidth}{6.5in}%
+
 %\newgeometry{margin=1in}
 % overrides
 \renewcommand{\ellipses}{\mathrel{\cdot\kern-2pt\cdot\kern-2pt\cdot}}
@@ -32,6 +35,11 @@
 }{%
 \end{framed}%
 }
+
+\renewcommand{\builtinIfThenElseFi}[3]{\begin{array}{ll}\terminal{if}&{#1}\\\terminal{then}&{#2}\\\terminal{else}&\\&{#3}\\\terminal{fi}&\end{array}}
+
+\renewcommand{\reduceTop}[2]{\reduce{#1}{#2}}
+
 
 \makeatletter
 \renewcommand{\k@ruleLabel}[2]{%
