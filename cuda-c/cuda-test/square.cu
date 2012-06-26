@@ -1,4 +1,3 @@
-/* From: http://llpanorama.wordpress.com/2008/05/21/my-first-cuda-program/ */
 #include <stdlib.h> 
 #include <stdio.h> 
 #include <cuda.h> 
@@ -11,9 +10,11 @@ __global__ void square_array(int* a) {
 }
 
 int main(void) { 
-      int* hostptr, *devptr;
+      int host[N];
+      int* device;
       int i;
       dim3 grid, block;
+      int pass;
 
       size_t nbytes = N * sizeof(int); 
 
@@ -31,22 +32,31 @@ int main(void) {
       grid.x = nblocks;
       block.x = nthreads;
 
-      hostptr = (int*) malloc(nbytes);
-      cudaMalloc(&devptr, nbytes);
+      cudaMalloc(&device, nbytes);
 
       for (i = 0; i != N; ++i) 
-            hostptr[i] = (int)i;
+            host[i] = (int)i;
 
-      cudaMemcpy(devptr, hostptr, nbytes, cudaMemcpyHostToDevice); 
+      cudaMemcpy(device, host, nbytes, cudaMemcpyHostToDevice); 
 
-      square_array<<<grid, block>>>(devptr); 
+      square_array<<<grid, block>>>(device); 
 
-      cudaMemcpy(hostptr, devptr, nbytes, cudaMemcpyDeviceToHost); 
+      cudaMemcpy(host, device, nbytes, cudaMemcpyDeviceToHost); 
 
-      for (i = 0; i != N; ++i) 
-            printf("%d %d\n", i, hostptr[i]);
+      cudaFree(device); 
 
-      cudaFree(devptr); 
-      free(hostptr);
+      pass = 1;
+      for (i = 0; i != N; ++i) {
+            pass = pass && (i*i) == host[i];
+      }
+
+      if (pass) {
+            printf("Test PASSED.\n");
+      } else {
+            printf("Test FAILED.\n");
+            for (i = 0; i != N; ++i) {
+                  printf("%d: %d", i, host[i]);
+            }
+      }
 }
 

@@ -1,3 +1,5 @@
+load cuda-headers
+
 module DYNAMIC-MEMORY-INCLUDE is
 	including DYNAMIC-INCLUDE 
 	
@@ -28,6 +30,7 @@ end module
 
 module DYNAMIC-SEMANTICS-READING is
 	including DYNAMIC-MEMORY-INCLUDE 
+      including CUDA-MEMORY-HEADER
 	
 	syntax K ::= "extractBitsFromMem" "(" Nat "," Nat ")" [klabel(extractBitsFromMem)] // loc, size in bits
 	syntax K ::= "extractByteFromMem" "(" Nat ")" [klabel(extractByteFromMem)] 
@@ -54,13 +57,12 @@ module DYNAMIC-SEMANTICS-READING is
 		<k> extractBitsFromList-aux(_, 0, 0, Done:List{K}) => dataList(Done:List{K}) ...</k>
 		[structural] 
 	
-	
 	context readActual(_, _, value(HOLE))
-	rule read(Loc:Nat, T:KResult) => read-aux(Loc:Nat, T:KResult, value(bitSizeofType(T:KResult))) 
+	rule read(Loc:Nat, T:KResult) 
+            => cuda-read-check(Loc:Nat)
+            ~> read-aux(Loc:Nat, T:KResult, value(bitSizeofType(T:KResult))) 
 		when notBool(isFunctionType(T:KResult))
 		[structural]
-	
-	
 	
 	syntax K ::= "readActual" "(" K "," K "," K ")" [klabel(readActual)]
 	
@@ -210,11 +212,9 @@ module DYNAMIC-SEMANTICS-READING is
 	// context extractBytesFromMem-aux(_, _, (_,, HOLE,, _)) 
 	// this next op should use Nats, but the context doesn't allow it.  See issue 54
 	syntax K ::= "extractBytesFromMem-aux" "(" K "," K "," List{K} ")" [klabel(extractBytesFromMem-aux)] // loc, size in bytes, aux list
-	syntax K ::= "cuda-read-check" "(" K ")"
 	rule
 		<k> extractBytesFromMem(Loc:Nat, Size:Nat) 
-			=> cuda-read-check(Loc:Nat)
-                  ~> extractBytesFromMem-aux(Loc:Nat, Size:Nat, .List{K}) 
+                  => extractBytesFromMem-aux(Loc:Nat, Size:Nat, .List{K}) 
 		...</k>
 		[structural] 
 		
@@ -305,6 +305,7 @@ end module
 
 module DYNAMIC-SEMANTICS-WRITING is
 	including DYNAMIC-MEMORY-INCLUDE 
+	including CUDA-MEMORY-HEADER
 	context alloc(_, value(HOLE)) 
 
 	rule 
@@ -394,7 +395,6 @@ module DYNAMIC-SEMANTICS-WRITING is
 	declare calculateNewBytes : Nat K K -> K [strict(3)] 
 	
 	syntax K ::= "write-aux" "(" K "," Value "," K ")" [strict(2) klabel(write-aux)]
-	syntax K ::= "cuda-write-check" "(" K ")"
 	rule write(lv(Dest:Nat, T':KResult), tv(V:List{K}, T:KResult)) 
 		=> cuda-write-check(Dest:Nat)
             ~> write-aux(Dest:Nat, tv(V:List{K}, T:KResult), value(bitSizeofType(T:KResult))) 

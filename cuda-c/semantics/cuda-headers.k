@@ -32,6 +32,9 @@ module CUDA-MEMORY-HEADER is
                        | "cuda-access-device-write"
                        | "cuda-access-host-read"
                        | "cuda-access-host-write"
+
+	syntax K ::= "cuda-read-check" "(" K ")"
+	syntax K ::= "cuda-write-check" "(" K ")"
 end module
 
 module CUDA-STREAMS-HEADER is

@@ -244,8 +244,6 @@ module CUDA-MEMORY is
             when Kind:Nat ==Int cudaMemcpyDeviceToHost
             [structural]
 
-      // Using a single thread for memory transfers might model the
-      // architecture better.
       rule [cuda-memcpy-h2d-stream]:
             <streamContents> cuda-memcpy-h2d(Dst:Nat, Src:Nat, Count:Nat)
                   => cuda-launch-thread(
@@ -265,18 +263,25 @@ module CUDA-MEMORY is
             ...</streamContents>
             <nextGid> GId:Nat => GId:Nat +Int 1 </nextGid>
 
+      // TODO: readActual and write-specific: these bypass the check for
+      // reading/writing thread-local memory (e.g., stack), but they also
+      // bypass the cuda memory checks.
       rule [cuda-memcpy-read]:
-            <k> (.K => read(Src:Nat, t(.Set, char)))
+            <k> (.K 
+                        => cuda-read-check(Src:Nat)
+                        ~> readActual(Src:Nat, t(.Set, char), value(bitSizeofType(t(.Set, char)))))
                   ~> cuda-memcpy(_, (Src:Nat => Src:Nat +Int 1), (Count:Nat => Count:Nat -Int 1))
             ...</k>
             when Count:Nat =/=Int 0
-            [structural]
+            [computational ndlocal]
       
       rule [cuda-memcpy-write]:
-            <k> (tv(I:Int, T:KResult) => write(lv(Dst:Nat, t(.Set, char)), tv(I:Int, T:KResult)))
+            <k> (tv(I:Int, T:KResult) 
+                        => cuda-write-check(Dst:Nat)
+                        ~> write-specific(Dst:Nat, tv(I:Int, T:KResult), value(bitSizeofType(T:KResult))))
                   ~> cuda-memcpy((Dst:Nat => Dst:Nat +Int 1), _, _)
             ...</k>
-            [structural]
+            [computational ndlocal]
 
       rule [cuda-memcpy-done]:
             <k> cuda-memcpy(_, _, 0) => . ...</k>
