@@ -6,11 +6,12 @@
 #define NELEMENTS 12
 // NRUNS should be < NELEMENTS.
 #define NRUNS 2
-#define NBLOCKS 2
+#define NBLOCKS 3
 // NTHREADS_PER_BLOCK*NBLOCKS should equal NELEMENTS
-#define NTHREADS_PER_BLOCK 6
+#define NTHREADS_PER_BLOCK 4
 
-__global__ void sum_kernel(int* g_odata, int* g_idata, int* g_scratch, int run) {
+// Sums an array in a very awkward way.
+__global__ void sum_kernel(int* g_odata, int* g_idata, int* g_scratch) {
       __shared__ int shared[NELEMENTS];
       int i, gtid = blockIdx.x * blockDim.x + threadIdx.x;
       int tid = threadIdx.x;
@@ -33,9 +34,10 @@ __global__ void sum_kernel(int* g_odata, int* g_idata, int* g_scratch, int run) 
             g_scratch[blockIdx.x] = shared[0];
       }
 
+      // __threadfence instead of g_scratch perhaps would make better sense.
       if (gtid == 0) {
             for (i = 0; i != gridDim.x; ++i) {
-                  g_odata[run] += g_scratch[i];
+                  *g_odata += g_scratch[i];
             }
       }
 }
@@ -68,7 +70,7 @@ int main(int argc, char** argv) {
 
       cudaMalloc(&d_idata, NELEMENTS * sizeof(int));
       cudaMalloc(&d_odata, NRUNS * sizeof(int));
-      cudaMalloc(&d_scratch, NELEMENTS * sizeof(int));
+      cudaMalloc(&d_scratch, NBLOCKS * NRUNS * sizeof(int));
 
       cudaMemcpy(d_idata, h_data, NELEMENTS * sizeof(int), cudaMemcpyHostToDevice);
 
@@ -82,7 +84,7 @@ int main(int argc, char** argv) {
       for (i = 0; i != NRUNS; ++i) {
             cudaStreamCreate(&streams[i]);
             sum_kernel<<< grid, block, NELEMENTS * sizeof(int), streams[i] >>>
-                  (d_odata, d_idata, d_scratch, i);
+                  (&d_odata[i], d_idata, &d_scratch[NBLOCKS * i]);
       }
       cudaDeviceSynchronize();
 
@@ -101,4 +103,5 @@ int main(int argc, char** argv) {
       free(h_data);
       cudaFree(d_idata);
       cudaFree(d_odata);
+      cudaFree(d_scratch);
 }

@@ -45,18 +45,8 @@ int main(void) {
 
       cudaFree(device); 
 
-      pass = 1;
       for (i = 0; i != N; ++i) {
-            pass = pass && (i*i) == host[i];
-      }
-
-      if (pass) {
-            printf("Test PASSED.\n");
-      } else {
-            printf("Test FAILED.\n");
-            for (i = 0; i != N; ++i) {
-                  printf("%d: %d", i, host[i]);
-            }
+            printf("%d: %d\n", i, host[i]);
       }
 }
 
