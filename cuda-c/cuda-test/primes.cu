@@ -1,6 +1,7 @@
 /* From: https://github.com/mvx24 
  * Find the sum of all primes below 2 million (Project Euler #10).
  * This can take a while! *spoiler* 142913828922
+ * Below 2000: 277050 (took 19 hours)
  */
 
 #include <stdio.h>
@@ -9,7 +10,7 @@
 
 #define THREADS_PER_BLOCK     512
 #define START_NUMBER          1414
-#define TOTAL_THREADS         ((2000000-START_NUMBER)/2)
+#define TOTAL_THREADS         ((2002-START_NUMBER)/2)
 
 // Kernel that executes on the CUDA device
 __global__ void sum_primes(int* firstPrimes, size_t n, unsigned long long* blockSums) {
