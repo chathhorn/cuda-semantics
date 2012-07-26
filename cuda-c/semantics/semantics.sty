@@ -5,15 +5,17 @@
 \usepackage{etex}
 \usepackage{courier}
 \usepackage{booktabs}
-\usepackage[margin=1in]{geometry}
+\usepackage[legalpaper, margin=1in]{geometry} % showframe
 \usepackage[pdftex]{hyperref}
 %\usepackage{enumitem}
 \usepackage{xparse}
 \usepackage{multicol}
 \usepackage{framed}
 
+%\usepackage{showframe} % to show margins
+
 \pagestyle{empty}
-\setlength{\textwidth}{6.5in}%
+%\setlength{\textwidth}{6.5in}%
 
 %\newgeometry{margin=1in}
 % overrides
@@ -29,6 +31,7 @@
   % \ifthenelse{\equal{#1}{}}{\mbox{\scshape #2}}{\k@withTooltip{\mbox{\scshape #2}}{Rule Label: #1}}%
 % }
 \newsavebox{\LstBox} % for listings in tikz
+\newsavebox{\LstBoxb} % for listings in tikz
 
 \newenvironment{rulesGroup}{%
 \begin{framed}%
@@ -36,9 +39,16 @@
 \end{framed}%
 }
 
+%\renewcommand{\builtinKra}[2]{\begin{array}{@{}l@{}}{#1}\ensuremath{\kra}\\{#2}\end{array}}
+%\renewcommand{\builtinAnd}[2]{\begin{array}{@{}c@{}}{#1}\\\mathrel{\wedge_{\scriptstyle\it Bool}}{#2}\end{array}}
+\renewcommand{\builtinOr}[2]{{\begin{array}{@{}c@{}}{#1}\\\mathrel{\vee_{\scriptstyle\it Bool}}{#2}\end{array}}}
 \renewcommand{\builtinIfThenElseFi}[3]{\begin{array}{ll}\terminal{if}&{#1}\\\terminal{then}&{#2}\\\terminal{else}&\\&{#3}\\\terminal{fi}&\end{array}}
 
 \renewcommand{\reduceTop}[2]{\reduce{#1}{#2}}
+
+%\renewcommand{\sentenceBody}[1]{\ensuremath{#1}}
+%\renewcommand{\sentenceBody}[1]{\hspace{1cm}\ensuremath{#1}}
+\renewcommand{\sentenceBody}[1]{\ensuremath{\begin{array}[t]{c}#1\end{array}}}
 
 
 \makeatletter
@@ -111,14 +121,77 @@
 	}%
 }
 \newcommand{\fromStandard}[2]{%
-\begin{tikzpicture}
-    \node[comment]{\begin{minipage}{8.5in}#1 #2\end{minipage}};
-  \end{tikzpicture}\par
+%\begin{tikzpicture}
+%    \node[comment]{\begin{minipage}{8.5in}#1 #2\end{minipage}};
+%  \end{tikzpicture}\par
+#1 #2
 }
+
+\tikzset{normalComment/.style={
+    rectangle,
+    rounded corners,
+    draw,
+    fill=black!10,
+    inner sep=.75em
+  }
+}
+
+\makeatletter
+\renewenvironment{kblock}[1][\k@style]{%
+\ifk@tight%
+\small%
+\fi%
+\newcommand{\kblock@arg}{#1}%
+\setlength{\kblock@indent}{\parindent}%
+\ifthenelse{\equal{#1}{bubble}}{%
+\renewcommand{\kall}{\ball}%
+\renewcommand{\kallLarge}{\ballLarge}%
+\renewcommand{\kprefix}{\bprefix}%
+\renewcommand{\ksuffix}{\bsuffix}%
+\renewcommand{\kmiddle}{\bmiddle}%
+\renewcommand{\kdot}{\bdot}%
+\renewcommand{\AnyVar}{\bAnyVar}%
+}{\ifthenelse{\equal{#1}{math}}{%
+\renewcommand{\kall}{\mall}%
+\renewcommand{\kallLarge}{\mallLarge}%
+\renewcommand{\kprefix}{\mprefix}%
+\renewcommand{\ksuffix}{\msuffix}%
+\renewcommand{\kmiddle}{\mmiddle}%
+\renewcommand{\kdot}{\mdot}%
+\renewcommand{\AnyVar}{\mAnyVar}%
+}%
+{\ifthenelse{\equal{#1}{text}}{%
+  \begin{Sbox}%
+    \begin{minipage}{11.5in}%
+      \addtolength{\parskip}{.5\baselineskip}%
+}{%
+}}}%
+}{%
+\ifthenelse{\equal{\kblock@arg}{text}}{%
+    \ \end{minipage}%
+  \end{Sbox}%
+  \begin{tikzpicture}
+    \node[comment]{\TheSbox};
+  \end{tikzpicture}%
+  \k@markPosition%
+}{%
+}%
+\setlength{\parindent}{\kblock@indent}%
+\par\ \par%
+}
+\makeatother
+
+% \newcommand{\normalComment}[2]{%
+% \begin{tikzpicture}
+    % \node[normalComment]{\begin{minipage}{8.5in}#1 #2\end{minipage}};
+  % \end{tikzpicture}\par
+% }
 
 \newcommand{\para}[2]{%
 	\S#1\thinspace \P#2%
 }
 
-\newcommand{\broken}[1]{{\color{red}#1}}
-\newcommand{\negative}[1]{{\color{red}#1}}
+%\newcommand{\broken}[1]{{\color{red}#1}}
+%\newcommand{\negative}[1]{{\color{red}#1}}
+\newcommand{\broken}[1]{{#1}}
+\newcommand{\negative}[1]{{#1}}

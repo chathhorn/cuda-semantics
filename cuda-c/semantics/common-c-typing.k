@@ -160,7 +160,7 @@ module COMMON-SEMANTICS-TYPE-CANONICALIZATION is
 		[structural]
 
 	rule
-		<k> canonicalizeType-aux(B:Bag (BagItem(T:K) => .Bag), _, _, _, (_ (.Bag => BagItem(T:K)))) ...</k>
+		<k> canonicalizeType-aux(B:Bag (BagItem(T:K) => .Bag), _, _, _, (_ .Bag => BagItem(T:K))) ...</k>
 		when T:K ==K Extern
 		orBool T:K ==K Static
 		orBool T:K ==K Const
@@ -173,7 +173,7 @@ module COMMON-SEMANTICS-TYPE-CANONICALIZATION is
 		[structural]
 		
 	rule
-		<k> canonicalizeType-aux(.Bag, (T:KResult => t(.Set, qualifiedType(T:KResult, Q:K))), .Bag, .Bag, (_ (BagItem(Q:K) => .Bag))) ...</k>
+		<k> canonicalizeType-aux(.Bag, (T:KResult => t(.Set, qualifiedType(T:KResult, Q:K))), .Bag, .Bag, (_ BagItem(Q:K) => .Bag)) ...</k>
 		when Q:K ==K Extern
 		orBool Q:K ==K Static
 		orBool Q:K ==K Volatile
@@ -184,7 +184,7 @@ module COMMON-SEMANTICS-TYPE-CANONICALIZATION is
 		orBool Q:K ==K ThreadLocal
 		[structural]
 	rule
-		<k> canonicalizeType-aux(.Bag, (t((.Set => SetItem(Const)) _, _)), .Bag, .Bag, (_ (BagItem(Q:K) => .Bag))) ...</k>
+		<k> canonicalizeType-aux(.Bag, (t((.Set => SetItem(Const)) _, _)), .Bag, .Bag, (_ BagItem(Q:K) => .Bag)) ...</k>
 		when Q:K ==K Const
 		[structural]
 		
@@ -568,12 +568,12 @@ end module
 module COMMON-SEMANTICS-TYPE-MISC is
 	including COMMON-SEMANTICS-TYPE-INCLUDE
 	
-	/*@ \source[n1570]{\para{6.2.7}{1}}
+	/*@ \fromStandard{\source[n1570]{\para{6.2.7}{1}}}{
 	Two types have compatible type if their types are the same. Additional rules for determining whether two types are compatible are described in 6.7.2 for type specifiers, in 6.7.3 for type qualifiers, and in 6.7.6 for declarators.  Moreover, two structure, union, or enumerated types declared in separate translation units are compatible if their tags and members satisfy the following requirements: If one is declared with a tag, the other shall be declared with the same tag. If both are completed anywhere within their respective translation units, then the following additional requirements apply: there shall be a one-to-one correspondence between their members such that each pair of corresponding members are declared with compatible types; if one member of the pair is declared with an alignment specifier, the other is declared with an equivalent alignment specifier; and if one member of the pair is declared with a name, the other is declared with the same name. For two structures, corresponding members shall be declared in the same order. For two structures or unions, corresponding bit-fields shall have the same widths. For two enumerations, corresponding members shall have the same values.
 	
 	\source[n1570]{\para{6.7.3}{10}}
 	For two qualified types to be compatible, both shall have the identically qualified version of a compatible type; the order of type qualifiers within a list of specifiers or qualifiers does not affect the specified type.
-	*/
+	}*/
 	
 	define [typeCompatible-identical]: isTypeCompatible(T:KResult, T:KResult) 
 		=> true 
@@ -852,8 +852,7 @@ module COMMON-SEMANTICS-TYPE-MISC is
 	// */
 	define isArithmeticType(T:KResult) => hasIntegerType(T:KResult) orBool isFloatType(T:KResult)
 
-      // TODO: CUDA: is this enough?
-	define unqualifyType(t(_:Set, qualifiedType(T:KResult, _))) => unqualifyType(T:KResult)
+	define unqualifyType(t(_:Set, qualifiedType(T:KResult, _))) => T:KResult 
 	define unqualifyType(t(_:Set, T:K)) => t(.Set, T:K)
 		when getKLabel(T:K) =/=KLabel 'qualifiedType 
 		

@@ -1,10 +1,10 @@
 module COMMON-C-CONFIGURATION is
 	including C-SYNTAX
 
-	syntax CellLabel ::= "stackFrame" | "continuation" | "stackCurrentFunction" | "stackCurrentProgramLoc"
+	syntax CellLabel ::= "continuation" | "stackCurrentFunction" | "stackCurrentProgramLoc"
 	
 	configuration 
-		<T> 
+		<T>
                   // CUDA: the grid id will be unique for every kernel call.
                   <nextGid> 1 </nextGid> 
                   <grids> .Map </grids>
@@ -31,16 +31,12 @@ module COMMON-C-CONFIGURATION is
                   <initializedEvents> .Set </initializedEvents>
                   <pendingEvents> .Map </pendingEvents>
                   <recordedEvents> .Map </recordedEvents>
-
                   // CUDA done.
                   
-			// <modelChecking multiplicity="?"> .K </modelChecking>
-			// <busy> .Bag </busy>
 			<gotoMap color="lightgray"> .Map </gotoMap>
 			<genv color="lightgray"> .Map </genv>
 			<gtypes color="lightgray"> .Map </gtypes>
 			<gstructs color="lightgray"> .Map </gstructs>
-
 			<memory color="red" type="Map">
 				<object multiplicity="*">
 					<basePtr type="Key"> 0 </basePtr>
@@ -57,18 +53,18 @@ module COMMON-C-CONFIGURATION is
 			<malloced color="lightgray"> .Map </malloced>
 			<stringLiterals color="lightgray"> .Map </stringLiterals>
 			<br/>
-                  <leftoverExterns color="cyan"> .Bag </leftoverExterns>
-                  <translationUnits color="cyan"> .Bag </translationUnits>
-                  <declarationOrder color="cyan"> .Map </declarationOrder>
-                  <externalDefinitions color="cyan"> .Map </externalDefinitions>
-                  <internalDefinitions color="cyan"> .Map </internalDefinitions>
-                  <internalLocations color="cyan"> .Map </internalLocations>
-                  <externalLocations color="cyan"> .Map </externalLocations>
-                  <preLinkage color="cyan"> .Map </preLinkage>
-                  <preTypes color="cyan"> .Map </preTypes>
-                  <declarations color="cyan"> .Set </declarations>
+			<leftoverExterns color="cyan"> .Bag </leftoverExterns>
+			<translationUnits color="cyan"> .Bag </translationUnits>
+			<declarationOrder color="cyan"> .Map </declarationOrder>
+			<externalDefinitions color="cyan"> .Map </externalDefinitions>
+			<internalDefinitions color="cyan"> .Map </internalDefinitions>
+			<internalLocations color="cyan"> .Map </internalLocations>
+			<externalLocations color="cyan"> .Map </externalLocations>
+			<preLinkage color="cyan"> .Map </preLinkage>
+			<preTypes color="cyan"> .Map </preTypes>
+			<declarations color="cyan"> .Set </declarations>
 			<br/>
-			<functionTranslationUnits color="lightgray"> .Map </functionTranslationUnits> // map from current tu to (map from id to where function was defined)			
+			<funTUs color="lightgray"> .Map </funTUs> // map from current tu to (map from id to where function was defined)			
 			<nextSharedLoc color="black"> 0 </nextSharedLoc>
 			<threadInformation color="yellow">
 				<threadStatus color="yellow"> .Map </threadStatus>
@@ -156,7 +152,7 @@ module COMMON-C-CONFIGURATION is
 			</threads>
 		</T>
 		<br/>
-		<xmessages color="black"> .K </xmessages>
+		//<xmessages color="black"> .K </xmessages>
 		<files color="lightgray">
 			<fileCommands> .K </fileCommands>
 			<file multiplicity="*">

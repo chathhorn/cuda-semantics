@@ -3,7 +3,7 @@ module DYNAMIC-SEMANTICS-STATEMENTS-INCLUDE is
 	including DYNAMIC-INCLUDE
 
 	syntax K ::= "pushBlock" [klabel(pushBlock)] 
-	syntax K ::= "addToHistory" "(" Nat ")" [klabel(addToHistory)]
+	syntax K ::= "addToHistory" "(" Nat ")" [latex "\terminal{addToHist}\!({#1}\!)" klabel(addToHistory)]
 end module 
 
 module DYNAMIC-SEMANTICS-LABELED-STATEMENTS is
@@ -145,11 +145,11 @@ module DYNAMIC-SEMANTICS-SWITCH is
 		<k> handleSwitch(SN:Nat, V:KResult) 
 			=> handleSwitch-aux(SN:Nat, V:KResult, Map(M:Map)) 
 		...</k>
-		<br/>
+		//<br/>
 		<currentFunction> F:Id </currentFunction>
 		<currTU> Tu:K </currTU>
 		<gotoMap>... kpair(Tu:K, F:Id) |-> Map(M:Map) ...</gotoMap>
-		[structural large] 
+		[structural] 
 		
 	syntax K ::= "tryCase" "(" K "," Value "," K ")" [klabel(tryCase)] //  K to be evaluated, val it should be, casehelper
 	context tryCase((HOLE => reval(HOLE)), _, _)
@@ -353,13 +353,13 @@ module DYNAMIC-SEMANTICS-GOTO is
 			~> K:K
 		</k>
 		<nestingDepth> Depth:Nat </nestingDepth>
-		<br/>
+		//<br/>
 		<blockHistory> ListItem(CurrentBlock:Nat) BlockHistory:List </blockHistory>
 		<loopStack> _ => LoopStack:List </loopStack>
 		<localVariables> Vars:List </localVariables>
 		when L:KLabel ==KLabel 'processGoto
 		orBool L:KLabel ==KLabel 'processGotoDown
-		[structural large] 
+		[structural] 
 		
 	// - second case, we're in a different block
 	
@@ -377,10 +377,10 @@ module DYNAMIC-SEMANTICS-GOTO is
 		<k> (. => popBlock) 
 			~> processGoto(gotoObject(TargetDepth:Nat, Prefix:List ListItem(BlockNum:Nat) TargetBlockHistory:List, _, _, _))
 		...</k>
-		<br/>
+		//<br/>
 		<blockHistory> ListItem(BlockNum:Nat) ActualHistory:List </blockHistory>
 		when TargetBlockHistory:List =/=List ActualHistory:List
-		[structural large] 
+		[structural] 
 			
 	//  once we share a history, we start to push
 	rule
@@ -397,14 +397,14 @@ module DYNAMIC-SEMANTICS-GOTO is
 	rule
 		<k> ( . 
 				=> pushBlock
-				~> addToHistory(TargetBlock:Nat)
-				~> addVariablesForBlock(TargetBlock:Nat, DeclStack:List)
+				~> addToHistory(TargetBlk:Nat)
+				~> addVariablesForBlock(TargetBlk:Nat, DeclStk:List)
 			)
-			~> processGotoDown(gotoObject(TargetDepth:Nat, (_ ListItem(TargetBlock:Nat) ActualHistory:List), _, _, DeclStack:List))
+			~> processGotoDown(gotoObject(TargetDepth:Nat, (_ ListItem(TargetBlk:Nat) ActualHist:List), _, _, DeclStk:List))
 		...</k>
 		<br/>
 		<nestingDepth> ActualDepth:Nat </nestingDepth>
-		<blockHistory> ActualHistory:List </blockHistory> //  (. => ListItem(TargetBlock:Nat)) 
+		<blockHistory> ActualHist:List </blockHistory> //  (. => ListItem(TargetBlock:Nat)) 
 		when ActualDepth:Nat +Int 1 =/=Int TargetDepth:Nat
 		[structural large] 
 	
@@ -421,16 +421,16 @@ module DYNAMIC-SEMANTICS-GOTO is
 			~> addVariablesForBlock(TargetBlock:Nat, DeclStack:List)
 			~> K:K
 		</k>
-		<br/>
+		//<br/>
 		<nestingDepth> Depth:Nat </nestingDepth>
 		<blockHistory> BlockHistory:List </blockHistory>
 		<loopStack> _ => LoopStack:List </loopStack>
 		when (L:KLabel ==KLabel 'processGoto
 		orBool L:KLabel ==KLabel 'processGotoDown)
 		andBool sNatDepth:Nat ==Int Depth:Nat +Int 1
-		[structural large] 
+		[structural] 
 		
-	syntax K ::= "addVariablesForBlock" "(" Nat "," List ")" [klabel(addVariablesForBlock)] 
+	syntax K ::= "addVariablesForBlock" "(" Nat "," List ")" [latex "\terminal{addVarsForBlock}\!({#1},{#2}\!)" klabel(addVariablesForBlock)] 
 	
 	//  skip variables from other blocks
 	rule
@@ -470,12 +470,12 @@ module DYNAMIC-SEMANTICS-GOTO is
 				((ListItem(frozenDeclaration(_:Nat, TargetBlock:Nat, Decl:K)) => .List) _)
 			)
 		...</k>
-		<br/>
+		//<br/>
 		<localVariables> Vars:List </localVariables>
 		<blockHistory> ListItem(TargetBlock:Nat) ...</blockHistory>
 		<shouldInit> _ => false </shouldInit>
 		when notBool getIdOfDeclaration(Decl:K) in Vars:List
-		[structural large]
+		[structural]
 		
 	//  fixme this is wrong
 	rule

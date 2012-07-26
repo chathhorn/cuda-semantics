@@ -57,6 +57,7 @@ module DYNAMIC-SEMANTICS-READING is
 		<k> extractBitsFromList-aux(_, 0, 0, Done:List{K}) => dataList(Done:List{K}) ...</k>
 		[structural] 
 	
+	
 	context readActual(_, _, value(HOLE))
 	rule read(Loc:Nat, T:KResult) 
             => cuda-read-check(Loc:Nat)
@@ -64,10 +65,11 @@ module DYNAMIC-SEMANTICS-READING is
 		when notBool(isFunctionType(T:KResult))
 		[structural]
 	
+	
+	
 	syntax K ::= "readActual" "(" K "," K "," K ")" [klabel(readActual)]
 	
-	/*@ These rules figure out whether the read should be structural or computational, depending on what is being read
-	*/
+	/*@ These rules figure out whether the read should be structural or computational, depending on what is being read */
 	rule [read-thread-local]:
 		<k> ('read-aux => 'readActual)(loc(threadId(Id:Nat) +Int _:Nat, _:Nat, _:Nat),, _,, _) ...</k>
 		<threadId> Id:Nat </threadId>
@@ -212,9 +214,10 @@ module DYNAMIC-SEMANTICS-READING is
 	// context extractBytesFromMem-aux(_, _, (_,, HOLE,, _)) 
 	// this next op should use Nats, but the context doesn't allow it.  See issue 54
 	syntax K ::= "extractBytesFromMem-aux" "(" K "," K "," List{K} ")" [klabel(extractBytesFromMem-aux)] // loc, size in bytes, aux list
+	
 	rule
 		<k> extractBytesFromMem(Loc:Nat, Size:Nat) 
-                  => extractBytesFromMem-aux(Loc:Nat, Size:Nat, .List{K}) 
+			=> extractBytesFromMem-aux(Loc:Nat, Size:Nat, .List{K}) 
 		...</k>
 		[structural] 
 		
@@ -242,6 +245,7 @@ module DYNAMIC-SEMANTICS-READING is
 		[structural] 
 	
 	// FIXME make sure it's a byte
+	
 	rule [read-byte-fast]:
 		<k> extractByteFromMem(loc(Base:Nat, Offset:Nat, 0))
 			=> assert(notBool (loc(Base:Nat, Offset:Nat, 0) in Locs:Bag), 3)
@@ -358,7 +362,7 @@ module DYNAMIC-SEMANTICS-WRITING is
 	rule [realloc-found]:
 		<k> realloc-aux((sNatN:Nat => sNatN:Nat -Int 1), loc(OldBase:Nat, 0, 0), loc(NewBase:Nat, 0, 0), _, _)
 		...</k>
-		<br/>
+		//<br/>
 		<object>...
 			<basePtr> OldBase:Nat </basePtr>
 			<bytes>... N:Nat |-> K:K ...</bytes>
@@ -369,7 +373,7 @@ module DYNAMIC-SEMANTICS-WRITING is
 		...</object>
 		when N:Nat ==Int sNatN:Nat -Int 1
 		andBool sNatN:Nat >Int 0
-		[large structural]	
+		[structural]	
 		
 	// fixme sNat
 	rule [realloc-unfound]:
@@ -392,15 +396,17 @@ module DYNAMIC-SEMANTICS-WRITING is
 	syntax K ::= "writeBitfield" "(" Nat "," Type "," K ")" [strict(3) klabel(writeBitfield)] 
 	declare isByteLoc : Nat -> Bool 
 	declare splitBytes : Value -> K 
-	declare calculateNewBytes : Nat K K -> K [strict(3)] 
+	declare calculateNewBytes : Nat K K -> K [latex "\terminal{calcNewBytes(}{#1}, {#2}, {#3}\terminal{)}" strict(3)] 
 	
 	syntax K ::= "write-aux" "(" K "," Value "," K ")" [strict(2) klabel(write-aux)]
 	rule write(lv(Dest:Nat, T':KResult), tv(V:List{K}, T:KResult)) 
 		=> cuda-write-check(Dest:Nat)
-            ~> write-aux(Dest:Nat, tv(V:List{K}, T:KResult), value(bitSizeofType(T:KResult))) 
+		~> write-aux(Dest:Nat, tv(V:List{K}, T:KResult), value(bitSizeofType(T:KResult))) 
 		when notBool isConstType(T':KResult)
 		[structural]
 	context write-aux(_, _, value(HOLE))
+	
+	
 	
 	syntax K ::= "write-specific" "(" Nat "," Value "," Nat ")" [klabel(write-specific)]
 	
@@ -833,7 +839,7 @@ module DYNAMIC-C-MEMORY-MISC is
 	// fixme could additionally use the type to check whether that type is valid for that pointer
 	rule [check-valid-loc]:
 		<k> checkValidLoc-aux(loc(BASE, Offset:Nat, 0)) => .K ...</k>
-		<br/>
+		//<br/>
 		<object>...
 			<basePtr> BASE </basePtr>
 			<oLength> Len:Nat </oLength>
@@ -845,7 +851,7 @@ module DYNAMIC-C-MEMORY-MISC is
 			) // my thread, global memory, or allocated (malloced) memory
 		andBool Offset:Nat <=Int Len:Nat // we're allowed to address one past
 		where BASE = threadId(PtrThreadId:Nat) +Int N:Nat
-		[large structural]
+		[structural]
 end module
 
 module DYNAMIC-C-MEMORY is

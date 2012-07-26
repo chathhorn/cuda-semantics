@@ -33,7 +33,7 @@ DYNAMIC_C_FILES = cu.k dynamic-c-semantics.k dynamic-c-configuration.k dynamic-c
 
 LATEX_CLEAN_FILES = temp-c-*.tex temp-c-*.log temp.pdflatex.out *.pdf temp.kpdf.out *.tex *.log *.aux
 K_CLEAN_FILES = *.maude .k kcompile_* \
-cu-compiled.maude.tmp.bak cu-compiled.maude.0 cu-compiled.maude.1 cu-compiled.maude.1.bak cu-compiled-nd.maude.0 cu-compiled-nd.maude.1 cu-compiled-nd.maude.1.bak cu-compiled-nd.maude.bak static-c.k.bak cu-compiled.maude \
+cu-compiled.maude.tmp.bak cu-compiled.maude.0 cu-compiled.maude.1 cu-compiled.maude.1.bak cu-compiled-nd.maude.0 cu-compiled-nd.maude.1 cu-compiled-nd.maude.1.bak cu-compiled-nd.maude.bak static-cu.k.bak cu-compiled.maude \
 duplicateLabels.txt 
 
 .PHONY: all clean force semantics pdf common-pdf-modules common-c-%-fake
@@ -41,10 +41,6 @@ duplicateLabels.txt
 .SECONDARY:
 
 all: semantics
-
-pdf: common-pdf-modules
-#c-expressions.pdf
-
 
 check-vars:
 ifeq ($(K_BASE),)
@@ -54,28 +50,21 @@ ifeq ($(K_BASE),)
 	@exit 1
 endif
 
+temp-c-syntax.tex: PDF_FILES = common-c-syntax
+temp-c-statements.tex: PDF_FILES = common-c-statements dynamic-c-statements
+temp-c-expressions.tex: PDF_FILES = common-c-expressions dynamic-c-expressions
+temp-c-typing.tex: PDF_FILES = common-c-typing dynamic-c-typing
+temp-c-declarations.tex: PDF_FILES = common-c-declarations dynamic-c-declarations
+temp-c-memory.tex: PDF_FILES = dynamic-c-memory
+temp-c-library.tex: PDF_FILES = dynamic-c-standard-lib
+temp-c-errors.tex: PDF_FILES = dynamic-c-errors
+temp-c-misc.tex: PDF_FILES = common-c-semantics common-c-helpers dynamic-c-semantics
+temp-c-%.tex: PDF_MODULES = `grep -o '^module.* is' $(addsuffix .k,$(PDF_FILES)) | grep -o ' .* '`
+temp-c-%.tex: check-vars $(K_MAUDE) cu.k $(addsuffix .k,$(PDF_FILES))
+	@echo "Creating latex..."
+	$(K_MAUDE) cu.k -l CU -package-options "style=bubble,magicTight" -latex $(PDF_MODULES) -output temp-c-$* 1> temp.kpdf.out
 
-temp-c-thesis.tex: PDF_FILES=\
-common-c-syntax.k \
-# common-c-configuration.k \
-dynamic-c-conversions.k \
-dynamic-c-expressions.k \
-dynamic-c-statements.k
-temp-c-thesis.tex: PDF_MODULES=`grep -o '^kmod.* is' $(PDF_FILES) | grep -o ' .* '`
-temp-c-thesis.tex: check-vars $(K_MAUDE) c.k $(PDF_FILES)
-	@echo "Creating latex..."
-	$(K_MAUDE) c.k -l C -package-options "style=bubble" -latex $(PDF_MODULES) -output temp-c-thesis 1> temp.kpdf.out
-	
-# k-includes.k: check-vars Makefile
-# @echo > k-includes.k
-#@echo "load $(K_PRELUDE)" >> k-includes.k
-#@echo "load $(K_SOCKETS)" >> k-includes.k
-temp-c-%.tex: PDF_MODULES=`grep -o '^module.* is' $*.k | grep -o ' .* '`
-temp-c-%.tex: check-vars $(K_MAUDE) cu.k %.k
-#@rm -f temp-c-$*.tex
-	@echo "Creating latex..."
-	$(K_MAUDE) cu.k -l C -package-options "style=bubble" -latex $(PDF_MODULES) -output temp-c-$* 1> temp.kpdf.out
-	
+%.tex: PDF_FILES ?= $*
 %.tex: temp-c-%.tex Makefile
 	@echo "Modifying latex..."
 	@cp $< $@.temp
@@ -106,62 +95,11 @@ temp-c-%.tex: check-vars $(K_MAUDE) cu.k %.k
 	@mv temp-c-$*.pdf $@
 	@echo "Done."
 
-all.tex: PDF_FILES=\
-common-c-syntax.k \
-common-c-configuration.k \
-dynamic-c-configuration.k \
-common-c-helpers.k \
-common-c-statements.k \
-dynamic-c-statements.k \
-common-c-expressions.k \
-dynamic-c-expressions.k \
-common-c-declarations.k \
-dynamic-c-declarations.k \
-common-c-typing.k \
-dynamic-c-typing.k \
-dynamic-c-conversions.k \
-dynamic-c-memory.k \
-dynamic-c-standard-lib.k \
-common-c-semantics.k \
-dynamic-c-semantics.k \
-cu.k
-all.tex: PDF_MODULES=`grep -o '^kmod.* is' $(PDF_FILES) | grep -o ' .* '`
-all.tex:
-	@rm -f temp-c-$*.tex
-	@echo "Creating latex..."
-	$(K_MAUDE) cu.k -l C -style mm -latex $(PDF_MODULES) -output temp-c-$* 1> temp.kpdf.out
-#@sed -i 's|}mybracket|}\\mybracket|' temp-c-$*.tex
-#@sed -i 's|\\begin{document}|\\input{semantics.sty}\n\\begin{document}|' temp-c-$*.tex
-	@mv temp-c-$*.tex $@
-	
-	
+configuration.pdf: custom-configuration.tex.orig
+	cp custom-configuration.tex.orig custom-configuration.tex
+	pdflatex custom-configuration.tex
 
-	
-common-pdf-modules: \
-cu.pdf \
-common-c-configuration.pdf \
-common-c-declarations.pdf \
-common-c-expressions.pdf \
-common-c-helpers.pdf \
-common-c-semantics.pdf \
-common-c-sized-operations.pdf \
-common-c-statements.pdf \
-common-c-syntax.pdf \
-common-c-typing.pdf \
-cu-syntax.pdf \
-dynamic-c-configuration.pdf \
-dynamic-c-conversions.pdf \
-dynamic-c-declarations.pdf \
-dynamic-c-errors.pdf \
-dynamic-c-expressions.pdf \
-dynamic-c-memory.pdf \
-dynamic-c-semantics.pdf \
-dynamic-c-standard-lib.pdf \
-dynamic-c-statements.pdf \
-dynamic-c-typing.pdf
-
-# cu-syntax.pdf
-#
+pdf: syntax.pdf configuration.pdf statements.pdf expressions.pdf typing.pdf declarations.pdf memory.pdf library.pdf errors.pdf misc.pdf
 
 
 cu-compiled.maude.0: check-vars $(K_FILES) $(COMMON_C_FILES) $(DYNAMIC_C_FILES) $(INSERT_LINE)
@@ -188,7 +126,7 @@ cu-total.maude: check-vars cu-compiled.maude $(K_BASE_FILES) $(K_TCP).maude Make
 	@echo "cu-compiled.maude" | perl $(SCRIPTS_DIR)/slurpFrontEnd.pl > $@
 
 cu-compiled-nd.maude.0: check-vars $(K_FILES) $(COMMON_C_FILES) $(DYNAMIC_C_FILES) $(INSERT_LINE)
-	@echo "Compiling the CUDA definition with nondeterminism..."
+	@echo "Compiling the C definition with nondeterminism..."
 	@$(COMPILE_C_ND)
 	@mv cu-compiled.maude cu-compiled-nd.maude.0
 	
@@ -200,10 +138,11 @@ cu-compiled-nd.maude: check-vars cu-compiled-nd.maude.0 $(K_FILES) $(COMMON_C_FI
 	@$(INSERT_LINE) $(FIRST_LINE) cu-compiled-nd.maude.1 "load $(K_PL_META_LEVEL)"
 	@cp cu-compiled-nd.maude.1 cu-compiled-nd.maude
 	@echo "Done".
-
+	
 cu-total-nd.maude: check-vars cu-compiled-nd.maude $(K_BASE_FILES) $(K_TCP).maude Makefile
 	@echo "cu-compiled-nd.maude" | perl $(SCRIPTS_DIR)/slurpFrontEnd.pl > $@
 
+	
 cu-compiled-nd-thread.maude.0: check-vars $(K_FILES) $(COMMON_C_FILES) $(DYNAMIC_C_FILES) $(INSERT_LINE)
 	@echo "Compiling the C definition with thread-nondeterminism..."
 	@$(COMPILE_C_ND_THREAD)
