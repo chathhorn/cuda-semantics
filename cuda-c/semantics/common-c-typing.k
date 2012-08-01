@@ -601,6 +601,15 @@ module COMMON-SEMANTICS-TYPE-MISC is
 	define [typeCompatible-prototypes]: isTypeCompatible(t(_, prototype(T:KResult)), t(_, prototype(T':KResult))) 
 		=> isTypeCompatible(T:KResult, T':KResult) 
 		[structural]
+      // CUDA: attempt to make two extern declarations of non-conflicting types
+      // legal.
+	define [typeCompatible-prototypes-left]: isTypeCompatible(t(_, prototype(T:KResult)), T':KResult) 
+		=> isTypeCompatible(T:KResult, T':KResult) 
+		[structural]
+	define [typeCompatible-prototypes-right]: isTypeCompatible(T:KResult, t(_, prototype(T':KResult))) 
+		=> isTypeCompatible(T:KResult, T':KResult) 
+		[structural]
+      // CUDA done.
 
 	define [typeCompatible-array-right]: isTypeCompatible(T:KResult, t(S:Set, arrayType(T':KResult, _:Nat)))
 		=> isTypeCompatible(T:KResult, t(S:Set, pointerType(T':KResult))) 
@@ -852,7 +861,8 @@ module COMMON-SEMANTICS-TYPE-MISC is
 	// */
 	define isArithmeticType(T:KResult) => hasIntegerType(T:KResult) orBool isFloatType(T:KResult)
 
-	define unqualifyType(t(_:Set, qualifiedType(T:KResult, _))) => T:KResult 
+      // CUDA: enough?
+	define unqualifyType(t(_:Set, qualifiedType(T:KResult, _))) => unqualifyType(T:KResult)
 	define unqualifyType(t(_:Set, T:K)) => t(.Set, T:K)
 		when getKLabel(T:K) =/=KLabel 'qualifiedType 
 		

@@ -105,6 +105,16 @@ module CUDA-MEMORY is
 		where Loc = loc(threadId(allocatedDuration) +Int Fresh:Nat, 0, 0)
 		[structural]
 
+      rule [cuda-std-malloc-check-host]:
+            <k> cuda-std-malloc-check(_:Nat) => . ...</k>
+            <gid> 0 </gid>
+      rule [cuda-std-malloc-check-device]:
+            <k> cuda-std-malloc-check(Loc:Nat) 
+                  => cuda-set-mdevice(Loc)
+            ...</k>
+            <gid> GId:Nat </gid>
+            where GId =/=Int 0
+
       // Just like regular free.
       rule [cudaFree]:
             <k> prepareBuiltin((Identifier("cudaFree")), tv(Loc:Nat, t(_, pointerType(_))))

@@ -109,10 +109,10 @@ module CUDA-DECLARATIONS is
            [structural]
       rule [cuda-check-isglobal-fail]:
            < k => finalComputation > cuda-check-isglobal(Call(tv(Loc:Nat, _), _)) ...</ k => finalComputation >
-           (.Bag => <errorCell> Error("90000", "CUDA: Attempting to call a device function not marked __global__ from the host.") </errorCell>)
-           <functions>... Loc:Nat |-> functionObject(X:Id, _, _) ...</functions>
+           (.Bag => <errorCell> Error("90000", "CUDA: Attempting to call a device function not marked __global__ from the host:" +String S:String) </errorCell>)
+           <functions>... Loc:Nat |-> functionObject(Identifier(S:String), _, _) ...</functions>
            <cudaGlobalFunctions> Fs:Set </cudaGlobalFunctions>
-           when notBool(X:Id in Fs:Set)
+           when notBool(Identifier(S:String) in Fs:Set)
            [structural]
 
       /*@ A function on the device must be tagged with either __device__ or
@@ -128,12 +128,12 @@ module CUDA-DECLARATIONS is
            [structural]
       rule [cuda-check-isdevice-fail]:
            < k => finalComputation > cuda-check-isdevice(Loc:Nat) ...</ k => finalComputation >
-           (.Bag => <errorCell> Error("90001", "CUDA: Attempting to call a host function from the device.") </errorCell>)
-           <functions>... Loc:Nat |-> _:KLabel(X:Id,, _:List{K}) ...</functions>
+           (.Bag => <errorCell> Error("90001", "CUDA: Attempting to call a host function from the device:" +String S:String) </errorCell>)
+           <functions>... Loc:Nat |-> _:KLabel(Identifier(S:String),, _:List{K}) ...</functions>
            <cudaGlobalFunctions> GFs:Set </cudaGlobalFunctions>
            <cudaDeviceFunctions> DFs:Set </cudaDeviceFunctions>
-           when notBool(X:Id in GFs:Set)
-           andBool notBool(X:Id in DFs:Set)
+           when notBool(Identifier(S:String) in GFs:Set)
+           andBool notBool(Identifier(S:String) in DFs:Set)
            [structural]
 
       /*@ A function on the host might not have a __host__ tag. Also, note that
@@ -150,12 +150,12 @@ module CUDA-DECLARATIONS is
            [structural]
       rule [cuda-check-ishost-fail]:
            < k => finalComputation > cuda-check-ishost(Loc:Nat) ...</ k => finalComputation >
-           (.Bag => <errorCell> Error("90002", "CUDA: Attempting to call a device function from the host.") </errorCell>)
-           <functions>... Loc:Nat |-> _:KLabel(X:Id,, _:List{K}) ...</functions>
+           (.Bag => <errorCell> Error("90002", "CUDA: Attempting to call a device function from the host:" +String S:String) </errorCell>)
+           <functions>... Loc:Nat |-> _:KLabel(Identifier(S:String),, _:List{K}) ...</functions>
            <cudaGlobalFunctions> GFs:Set </cudaGlobalFunctions>
            <cudaDeviceFunctions> DFs:Set </cudaDeviceFunctions>
-           when X:Id in GFs:Set
-           orBool X:Id in DFs:Set
+           when Identifier(S:String) in GFs:Set
+           orBool Identifier(S:String) in DFs:Set
            [structural]
 
 end module

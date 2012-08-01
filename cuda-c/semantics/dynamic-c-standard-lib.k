@@ -1,3 +1,5 @@
+load cuda-headers
+
 module DYNAMIC-C-STANDARD-LIBRARY-INCLUDE is
 	including DYNAMIC-INCLUDE 
 	// including #SOCKET
@@ -941,6 +943,7 @@ end module
 
 module DYNAMIC-C-STANDARD-LIBRARY-STDLIB is
 	including DYNAMIC-C-STANDARD-LIBRARY-INCLUDE
+      including CUDA-MEMORY-HEADER
 	
 	rule [debug]:
 		<k> prepareBuiltin(Identifier("__debug"), _) => skipval ...</k>
@@ -975,6 +978,7 @@ The malloc function returns either a null pointer or a pointer to the allocated 
 	rule [malloc]:
 		<k> prepareBuiltin((Identifier("malloc")), tv(Len:Nat, T:KResult))
 			=> alloc(newAlloc(Fresh:Nat), Len:Nat)
+                  ~> cuda-std-malloc-check(newAlloc(Fresh:Nat))
 			~> tv(newAlloc(Fresh:Nat), t(.Set, pointerType(t(.Set, void))))
 		...</k>
 		//<br/>

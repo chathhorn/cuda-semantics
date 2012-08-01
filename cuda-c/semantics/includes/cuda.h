@@ -114,4 +114,13 @@ __device__ float __logf(float x);
 __device__ float __sinf(float x);
 __device__ float __tanf(float x);
 
+/* The CUDA version of malloc allocates global device memory. */
+
+__device__ void* malloc(size_t size);
+__device__ void free(void* ptr);
+
+/* Debugging. */
+
+__device__ int printf(const char * restrict format, ...);
+
 #endif

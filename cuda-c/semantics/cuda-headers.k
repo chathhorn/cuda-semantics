@@ -35,6 +35,8 @@ module CUDA-MEMORY-HEADER is
 
 	syntax K ::= "cuda-read-check" "(" K ")"
 	syntax K ::= "cuda-write-check" "(" K ")"
+
+      syntax K ::= "cuda-std-malloc-check" "(" Nat ")"
 end module
 
 module CUDA-STREAMS-HEADER is

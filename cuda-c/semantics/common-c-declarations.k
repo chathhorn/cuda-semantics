@@ -415,9 +415,10 @@ module COMMON-SEMANTICS-DECLARATIONS-GENERAL is
 	
 	// fixme clean these up, they are so redundant
 	// fixme unqualifying these is probably unsafe
+      // CUDA: Note that the following two rules will both match prototypes.
 	rule
 		<k> declareOnly(X:Id, T:KResult, external)
-			=> .K
+			=> cuda-decl-function(X:Id, T:KResult)
 		...</k>
 		<declarations>... .Set => SetItem(X:Id) ...</declarations>
 		//<br/>
@@ -436,7 +437,7 @@ module COMMON-SEMANTICS-DECLARATIONS-GENERAL is
 		
 	rule
 		<k> declareOnly(X:Id, t(_, prototype(T:KResult)), external)
-			=> .K
+			=> cuda-decl-function(X:Id, T:KResult) 
 		...</k>
 		//<br/>
 		<preLinkage>... Tu:K |-> Map((Linkage:Map => Linkage:Map[external / X:Id])) ...</preLinkage>
