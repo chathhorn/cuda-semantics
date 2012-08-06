@@ -31,6 +31,7 @@ end module
 module DYNAMIC-SEMANTICS-READING is
 	including DYNAMIC-MEMORY-INCLUDE 
       including CUDA-MEMORY-HEADER
+      including CUDA-RACECHECK-HEADER
 	
 	syntax K ::= "extractBitsFromMem" "(" Nat "," Nat ")" [klabel(extractBitsFromMem)] // loc, size in bits
 	syntax K ::= "extractByteFromMem" "(" Nat ")" [klabel(extractByteFromMem)] 
@@ -250,6 +251,7 @@ module DYNAMIC-SEMANTICS-READING is
 		<k> extractByteFromMem(loc(Base:Nat, Offset:Nat, 0))
 			=> assert(notBool (loc(Base:Nat, Offset:Nat, 0) in Locs:Bag), 3)
 			~> assert(Offset:Nat <Int Len:Nat, 2)
+                  ~> cuda-rc-read(loc(Base:Nat, Offset:Nat, 0))
 			~> tv(V:K, t(.Set, no-type))
 		...</k>
 		<br/>
@@ -310,15 +312,18 @@ end module
 module DYNAMIC-SEMANTICS-WRITING is
 	including DYNAMIC-MEMORY-INCLUDE 
 	including CUDA-MEMORY-HEADER
+      including CUDA-RACECHECK-HEADER
 	context alloc(_, value(HOLE)) 
 
 	rule 
 		allocateType(Loc:Nat, T:KResult) 
 			=> alloc(Loc:Nat, value(byteSizeofType(T:KResult))) 
+                  ~> cuda-set-props(Loc:Nat, T:KResult)
 		[structural]
 	rule [allocateTypeIfAbsent-absent]:
 		<k> allocateTypeIfAbsent(Loc:Nat, T:KResult) 
 			=> alloc(Loc:Nat, value(byteSizeofType(T:KResult))) 
+                  ~> cuda-set-props(Loc:Nat, T:KResult)
 		...</k>
 		<memory> Mem:Bag </memory>
 		when notBool base(Loc:Nat) in gatherInnerCells(Mem:Bag, basePtr)
@@ -608,7 +613,9 @@ module DYNAMIC-SEMANTICS-WRITING is
 		...</k>
 		[structural]
 	rule [write-byte-buffer]:
-		<k> writeByte(LOC, V:K) => .K ...</k>
+		<k> writeByte(LOC, V:K)
+                  => cuda-rc-write(LOC)
+            ...</k>
 		<buffer>... (.List => bwrite(LOC, V:K)) </buffer>
 		<br/>
 		<object>...
@@ -746,6 +753,7 @@ end module
 
 module DYNAMIC-C-MEMORY-MISC is
 	including DYNAMIC-MEMORY-INCLUDE 
+      including CUDA-MEMORY-HEADER
 
 	// used by calloc
 	rule
@@ -791,14 +799,20 @@ module DYNAMIC-C-MEMORY-MISC is
 		
 	rule [alloc-string]:
 		<k> allocString(Loc:Nat, S:String)
+                  // CUDA: TODO: making all string literals available on the
+                  // device and the host because I can't figure out exactly
+                  // when/how they first get allocated.
 			=> allocateType(Loc:Nat, t(.Set, arrayType(t(.Set, char), lengthString(S:String))))
+                  ~> cuda-set-mdevice(Loc:Nat)
 			~> writeString(Loc:Nat, S:String)
 			~> makeUnwritable(Loc:Nat)
 		...</k>
 		[structural]
 	rule [alloc-wstring]:
 		<k> allocWString(Loc:Nat, S:List{K})
+                  // CUDA
 			=> allocateType(Loc:Nat, t(.Set, arrayType(cfg:wcharut, 4 *Int lengthList{K}(S:List{K}))))
+                  ~> cuda-set-mdevice(Loc:Nat)
 			~> writeWString(Loc:Nat, S:List{K})
 			~> makeUnwritable(Loc:Nat)
 		...</k>

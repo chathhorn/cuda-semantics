@@ -10,18 +10,72 @@ module CUDA-MEMORY is
       including CUDA-HELPERS
       including DYNAMIC-C-SEMANTICS
 
+      syntax K ::= "cuda-set-mdevice" "(" Nat ")"
+                 | "cuda-set-mhost" "(" Nat ")"
+                 | "cuda-set-mshared" "(" Nat ")"
+                 | "cuda-check-set-mdevice" "(" Nat "," K ")"
+                 | "cuda-check-set-mhost" "(" Nat "," K ")"
+
+      // For the dim3 struct...
+//	rule [unqualify-struct-type]:
+//		<k> lv(_, (t(_, qualifiedType(T:KResult, _)) => T:KResult)) . _
+//		...</k>
+
+      rule [cuda-set-props-device]:
+            <k> cuda-set-props(Loc:Nat, T:KResult)
+                  => cuda-check-set-mdevice(Loc:Nat, T:KResult)
+                  ~> cuda-check-set-mhost(Loc:Nat, T:KResult)
+            ...</k>
+
+      rule [cuda-check-set-mdevice]:
+            <k> cuda-check-set-mdevice(Loc:Nat, T:KResult)
+                  => cuda-set-mdevice(Loc:Nat)
+            ...</k>
+            <gid> GId:Nat </gid>
+            when isCudaDeviceType(T:KResult)
+            orBool GId:Nat >Int 0
+      rule [cuda-check-set-mdevice-skip]:
+            <k> cuda-check-set-mdevice(Loc:Nat, T:KResult)
+                  => .
+            ...</k>
+            <gid> GId:Nat </gid>
+            when notBool isCudaDeviceType(T:KResult)
+            andBool GId:Nat ==Int 0
+
+      rule [cuda-check-set-mhost]:
+            <k> cuda-check-set-mhost(Loc:Nat, T:KResult)
+                  => cuda-set-mhost(Loc:Nat)
+            ...</k>
+            <gid> GId:Nat </gid>
+            when isCudaHostType(T:KResult)
+            orBool GId:Nat ==Int 0
+      rule [cuda-check-set-mhost-skip]:
+            <k> cuda-check-set-mhost(Loc:Nat, T:KResult)
+                  => .
+            ...</k>
+            <gid> GId:Nat </gid>
+            when notBool isCudaHostType(T:KResult)
+            andBool GId:Nat >Int 0
+
       rule [cuda-set-mdevice]:
-            <k> cuda-set-mdevice(loc(Base:Nat, 0, 0)) => . ...</k>
+            <k> cuda-set-mdevice(loc(Base:Nat, _, _)) => . ...</k>
             <object>...
                   <basePtr> Base:Nat </basePtr>
-                  <properties>... (. => cuda-mdevice) </properties>
+                  <properties>... (. => cuda-mdevice) ...</properties>
             ...</object>
 
       rule [cuda-set-mhost]:
-            <k> cuda-set-mhost(loc(Base:Nat, 0, 0)) => . ...</k>
+            <k> cuda-set-mhost(loc(Base:Nat, _, _)) => . ...</k>
             <object>...
                   <basePtr> Base:Nat </basePtr>
-                  <properties>... (. => cuda-mhost) </properties>
+                  <properties>... (. => cuda-mhost) ...</properties>
+            ...</object>
+
+      rule [cuda-set-mshared]:
+            <k> cuda-set-mshared(loc(Base:Nat, _, _)) => . ...</k>
+            <object>...
+                  <basePtr> Base:Nat </basePtr>
+                  <properties>... (. => cuda-mshared) ...</properties>
             ...</object>
 
       rule [cuda-alloc-shared-skip]:
@@ -35,6 +89,7 @@ module CUDA-MEMORY is
             <k> cuda-alloc-shared(X:Id, Len:Nat) 
                   => alloc(loc(Base:Nat, 0, 0), Len)
                   ~> cuda-set-mdevice(loc(Base:Nat, 0, 0)) 
+                  ~> cuda-set-mshared(loc(Base:Nat, 0, 0)) 
             ...</k>
             <bid> BId:Nat </bid>
             <gid> GId:Nat </gid>
@@ -88,6 +143,7 @@ module CUDA-MEMORY is
                   ~> cuda-success
             ...</k>
 
+      // Pinned memory accessible from both host and device.
       rule [cudaHostAlloc]:
             <k> prepareBuiltin((Identifier("cudaHostAlloc")), (ReturnPtrLoc:KResult,,tv(Len:Nat, T:KResult),,tv(Flags:Nat, _)))
                   => Computation(*(ReturnPtrLoc) := cuda-host-alloc(Len:Nat))
@@ -133,9 +189,9 @@ module CUDA-MEMORY is
       // object properties, thread access
       syntax K ::= "cuda-mem-check" "(" SetItem "," Set ")"
       // TODO: probably not right.
-      rule [cuda-read-ignore-unmalloced]:
-            <k> cuda-read-check(loc(N:Nat +Int _:Nat, _, _)) => . ...</k>
-            when N:Nat =/=K threadId(allocatedDuration) // Ignore everything but malloc'd.
+//      rule [cuda-read-ignore-unmalloced]:
+//            <k> cuda-read-check(loc(N:Nat +Int _:Nat, _, _)) => . ...</k>
+//            when N:Nat =/=K threadId(allocatedDuration) // Ignore everything but malloc'd.
       rule [cuda-read-ignore-pinned]:
             <k> cuda-read-check(loc(Base:Nat, _, _)) => . ...</k>
             <object>...

@@ -8,6 +8,7 @@ module CUDA-THREADS is
       including CUDA-DECLARATIONS-HEADER
       including CUDA-MEMORY-HEADER
       including CUDA-STREAMS-HEADER
+      including CUDA-RACECHECK-HEADER
       including DYNAMIC-C-SEMANTICS
 
       // call, nblocks, threads per block, nshared, stream
@@ -212,11 +213,10 @@ module CUDA-THREADS is
       rule [cuda-new-dim3]:
             <k> cuda-new-dim3(Dim:KResult)
                  => allocateType(loc(Base:Nat, 0, 0), cuda-dim3-type)
-                 ~> cuda-set-mdevice(loc(Base:Nat, 0, 0))
                  ~> cuda-fake-access(
-                        cuda-init-dim3(lv(loc(Base:Nat, 0, 0), cuda-dim3-type), Dim:KResult), 
+                        cuda-init-dim3(lv(loc(Base:Nat, 0, 0), unqualifyType(cuda-dim3-type)), Dim:KResult), 
                         cuda-access-device-read cuda-access-device-write)
-                 ~> lv(loc(Base:Nat, 0, 0), cuda-dim3-type)
+                 ~> lv(loc(Base:Nat, 0, 0), unqualifyType(cuda-dim3-type))
             ...</k>
             <freshNat> Fresh:Nat => Fresh:Nat +Int 1 </freshNat>
             where Base = threadId(allocatedDuration) +Int Fresh
@@ -389,7 +389,7 @@ module CUDA-THREADS is
       /*@ Pivot. */
 
       rule [cuda-syncthreads-pivot]:
-            <k> cuda-sync(1 => 2, _, _, TId:Nat, NThreads:Nat, _) ...</k> 
+            <k> (. => cuda-rc-sync-shared) ~> cuda-sync(1 => 2, _, _, TId:Nat, NThreads:Nat, _) ...</k> 
             when NThreads ==Int TId +Int 1
 
       /*@ Pass it back down. */

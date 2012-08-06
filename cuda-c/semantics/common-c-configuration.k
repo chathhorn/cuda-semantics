@@ -19,6 +19,28 @@ module COMMON-C-CONFIGURATION is
                         <streamContents> .K </streamContents>
                   </stream>
 
+                  // CUDA: Race checking.
+                  <cudaRaceChecking>
+                        <existingBlocks> .Set </existingBlocks>
+                        <shared multiplicity="*">
+                              <gid> 0 </gid>
+                              <bid> 0 </bid>
+
+                              // Loc |-> Tid
+                              <firstRead> .Map </firstRead>
+                              <firstWrite> .Map </firstWrite>
+                              // Locs
+                              <readClosed> .Set </readClosed>
+                              <writeClosed> .Set </writeClosed>
+                        </shared>
+                        // Loc |-> Tid
+                        <firstRead> .Map </firstRead>
+                        <firstWrite> .Map </firstWrite>
+                        // Locs
+                        <readClosed> .Set </readClosed>
+                        <writeClosed> .Set </writeClosed>
+                  </cudaRaceChecking>
+
                   <cudaHostFunctions> .Set </cudaHostFunctions>
                   <cudaDeviceFunctions> .Set </cudaDeviceFunctions>
                   <cudaGlobalFunctions> .Set </cudaGlobalFunctions>

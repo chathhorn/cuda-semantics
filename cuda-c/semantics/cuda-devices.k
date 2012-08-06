@@ -5,6 +5,7 @@ load dynamic-c-semantics
 module CUDA-DEVICES
       including CUDA-DEVICES-HEADER
       including CUDA-HELPERS
+      including CUDA-RACECHECK-HEADER
       including DYNAMIC-C-SEMANTICS
 
       rule [cudaGetDeviceCount]:
@@ -53,7 +54,7 @@ module CUDA-DEVICES
       rule [cudaDeviceSynchronize]:
             <k> prepareBuiltin((Identifier("cudaDeviceSynchronize")), _) => cuda-device-synchronize ...</k>
       rule [cuda-device-synchronize]:
-           <k> cuda-device-synchronize => cuda-success ...</k>
+           <k> cuda-device-synchronize => cuda-rc-sync-global ~> cuda-success ...</k>
            <activeStreams> .Set </activeStreams> // i.e., all streams are empty.
 
 end module

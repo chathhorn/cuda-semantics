@@ -2,8 +2,9 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <cuda.h>
 
-#define NUM_BLOCKS 20
+#define NUM_BLOCKS 2
 
 __device__ int* dataptr[NUM_BLOCKS]; // Per-block pointer
 
@@ -39,7 +40,7 @@ __global__ void freemem() {
 }
 
 int main() {
-      cudaDeviceSetLimit(cudaLimitMallocHeapSize, 128*1024*1024);
+      // cudaDeviceSetLimit(cudaLimitMallocHeapSize, 128*1024*1024);
       // Allocate memory
       allocmem<<< NUM_BLOCKS, 10 >>>();
       // Use memory

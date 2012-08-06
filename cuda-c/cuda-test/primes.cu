@@ -1,7 +1,7 @@
 /* From: https://github.com/mvx24 
  * Find the sum of all primes below 2 million (Project Euler #10).
  * This can take a while! *spoiler* 142913828922
- * Below 2000: 277050 (took 19 hours)
+ * For below 2k: 277050 (0.09s via nvcc, 19 hours via kcc!)
  */
 
 #include <stdio.h>

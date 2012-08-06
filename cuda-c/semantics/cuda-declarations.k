@@ -8,6 +8,7 @@ module CUDA-DECLARATIONS is
       including CUDA-MEMORY-HEADER
 
       /*@ Declarations. */
+      // E.g., extern __shared__ int* shared;
        rule [cuda-declare-shared-dynamic]:
 		<k> declareInternalVariable(X:Id, T:KResult, NoInit)
 			=> declareWithLinkage(X:Id, T:KResult, SingleInit(tv(SharedLoc:Nat, unqualifyType(T:KResult))), noLinkage)
@@ -25,6 +26,8 @@ module CUDA-DECLARATIONS is
 		[structural] 
 
        // TODO: Initializers (is that legal on shared variables?).
+       // E.g., __shared__ int shared[10]; but some other thread has already
+       // allocated the shared memory.
        rule [cuda-declare-shared-noalloc]:
 		<k> declareInternalVariable(X:Id, T:KResult, NoInit)
 			=> addToEnv(X:Id, SharedLoc:Nat)
@@ -39,10 +42,10 @@ module CUDA-DECLARATIONS is
 		andBool notBool isExternType(T:KResult)
             andBool isCudaSharedType(T:KResult)
 		[structural] 
+       // E.g., __shared__ int shared[10]; 
        rule [cuda-declare-shared]:
 		<k> declareInternalVariable(X:Id, T:KResult, NoInit)
 			=> allocateType(loc(Base:Nat, 0, 0), T:KResult)
-                  ~> cuda-set-mdevice(loc(Base:Nat, 0, 0)) 
                   ~> addToEnv(X:Id, loc(Base:Nat, 0, 0))
 			~> giveType(X:Id, T:KResult)
 		...</k>

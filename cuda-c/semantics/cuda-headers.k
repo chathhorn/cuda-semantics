@@ -17,8 +17,8 @@ module CUDA-TYPING-HEADER is
 end module
 
 module CUDA-MEMORY-HEADER is
+      syntax K ::= "cuda-set-props" "(" Nat "," K ")"
       syntax K ::= "cuda-set-mdevice" "(" Nat ")"
-      syntax K ::= "cuda-set-mhost" "(" Nat ")"
       // gid, bid
       syntax K ::= "cuda-shared-loc" "(" Nat "," Nat "," Id ")"
       syntax K ::= "cuda-alloc-shared" "(" Id "," Nat ")"
@@ -50,4 +50,11 @@ end module
 
 module CUDA-DEVICES-HEADER is
       syntax K ::= "cuda-device-synchronize"
+end module
+
+module CUDA-RACECHECK-HEADER is
+      syntax K ::= "cuda-rc-read" "(" Nat ")"
+                 | "cuda-rc-write" "(" Nat ")"
+      syntax K ::= "cuda-rc-sync-shared"
+                 | "cuda-rc-sync-global"
 end module
