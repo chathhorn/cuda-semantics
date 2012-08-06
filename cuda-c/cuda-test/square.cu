@@ -14,7 +14,6 @@ int main(void) {
       int* device;
       int i;
       dim3 grid, block;
-      int pass;
 
       size_t nbytes = N * sizeof(int); 
 

@@ -1,5 +1,7 @@
 // Incomplete
 // From Appendix B.5 of the CUDA-C Programming Guide. 
+#include <cuda.h>
+typedef int bool;
 
 __device__ unsigned int count = 0;
 

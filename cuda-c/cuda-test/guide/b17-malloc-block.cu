@@ -1,9 +1,14 @@
 // From Appendix B.17 of the CUDA-C Programming Guide.
 
 #include <stdlib.h>
+#include <cuda.h>
+
+#define NBLOCKS 2
+#define NTHREADS 2
+
+__shared__ int* data;
 
 __global__ void mallocTest() {
-      __shared__ int* data;
       // The first thread in the block does the allocation
       // and then shares the pointer with all other threads
       // through shared memory, so that access can easily be
@@ -26,8 +31,8 @@ __global__ void mallocTest() {
 }
 
 int main() {
-      cudaDeviceSetLimit(cudaLimitMallocHeapSize, 128*1024*1024);
-      mallocTest<<<10, 128>>>();
+      //cudaDeviceSetLimit(cudaLimitMallocHeapSize, 128*1024*1024);
+      mallocTest<<<NBLOCKS, NTHREADS>>>();
       cudaDeviceSynchronize();
       return 0;
 }
