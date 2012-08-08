@@ -112,7 +112,7 @@ module CUDA-DECLARATIONS is
            [structural]
       rule [cuda-check-isglobal-fail]:
            < k => finalComputation > cuda-check-isglobal(Call(tv(Loc:Nat, _), _)) ...</ k => finalComputation >
-           (.Bag => <errorCell> Error("90000", "CUDA: Attempting to call a device function not marked __global__ from the host:" +String S:String) </errorCell>)
+           (.Bag => <errorCell> Error("90000", "CUDA: Attempting to call a device function not marked __global__ from the host: " +String S:String) </errorCell>)
            <functions>... Loc:Nat |-> functionObject(Identifier(S:String), _, _) ...</functions>
            <cudaGlobalFunctions> Fs:Set </cudaGlobalFunctions>
            when notBool(Identifier(S:String) in Fs:Set)
@@ -131,7 +131,7 @@ module CUDA-DECLARATIONS is
            [structural]
       rule [cuda-check-isdevice-fail]:
            < k => finalComputation > cuda-check-isdevice(Loc:Nat) ...</ k => finalComputation >
-           (.Bag => <errorCell> Error("90001", "CUDA: Attempting to call a host function from the device:" +String S:String) </errorCell>)
+           (.Bag => <errorCell> Error("90001", "CUDA: Attempting to call a host function from the device: " +String S:String) </errorCell>)
            <functions>... Loc:Nat |-> _:KLabel(Identifier(S:String),, _:List{K}) ...</functions>
            <cudaGlobalFunctions> GFs:Set </cudaGlobalFunctions>
            <cudaDeviceFunctions> DFs:Set </cudaDeviceFunctions>
@@ -153,12 +153,14 @@ module CUDA-DECLARATIONS is
            [structural]
       rule [cuda-check-ishost-fail]:
            < k => finalComputation > cuda-check-ishost(Loc:Nat) ...</ k => finalComputation >
-           (.Bag => <errorCell> Error("90002", "CUDA: Attempting to call a device function from the host:" +String S:String) </errorCell>)
+           (.Bag => <errorCell> Error("90002", "CUDA: Attempting to call a device function from the host: " +String S:String) </errorCell>)
            <functions>... Loc:Nat |-> _:KLabel(Identifier(S:String),, _:List{K}) ...</functions>
            <cudaGlobalFunctions> GFs:Set </cudaGlobalFunctions>
            <cudaDeviceFunctions> DFs:Set </cudaDeviceFunctions>
+           <cudaHostFunctions> HFs:Set </cudaHostFunctions>
            when Identifier(S:String) in GFs:Set
            orBool Identifier(S:String) in DFs:Set
+           andBool notBool (Identifier(S:String) in HFs:Set)
            [structural]
 
 end module

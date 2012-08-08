@@ -19,7 +19,6 @@ module CUDA-THREADS is
                   // grid id
                   | "cuda-next-grid" "(" Nat ")"
                   // call, nblocks, nthreads, nshared
-                  | "cuda-grid" "(" K "," Nat "," Nat "," Nat ")"
                   | "cuda-sync-grid"
                   //          token, grid id, block id, this id, total ids, predicate
                   | "cuda-sync" "(" Nat "," Nat "," Nat "," Nat "," Nat "," Nat ")"
@@ -34,7 +33,7 @@ module CUDA-THREADS is
                                   tv(V:List{K}, T:KResult) . Identifier("y"), 
                                   tv(V:List{K}, T:KResult) . Identifier("z"))
             ...</k>
-            when T:KResult ==K cuda-dim3-type
+            when T:KResult ==K unqualifyType(cuda-dim3-type)
       rule [cuda-get-dim3-int]:
             <k> cuda-get-dim3(tv(N:Nat, T:KResult)) 
                  => cuda-dim3(N:Nat, 1, 1)
@@ -115,11 +114,12 @@ module CUDA-THREADS is
                         (cuda-alloc-shared(Identifier("$dynamic"), NShared:Nat) 
                               ~> cuda-put-blockIdx(cuda-new-dim3(cuda-dim1-to-dim3(BId:Nat, GridDim:KResult)))
                               ~> cuda-put-threadIdx(cuda-new-dim3(cuda-dim1-to-dim3(TId:Nat, BlockDim:KResult)))
+                              ~> cuda-sync-grid
                               ~> TBody:K),
                         GId:Nat, BId:Nat, TId:Nat, 
                         cuda-access-device-read cuda-access-device-write) 
             ...</streamContents>
-            <grids> ... GId |-> cuda-grid(_, _, _, NShared:Nat) ... </grids>
+            <grids>... GId |-> cuda-grid(_, _, _, NShared:Nat) ...</grids>
             <cudaGridDim>... GId:Nat |-> cuda-dim-info(_, GridDim:KResult) ...</cudaGridDim>
             <cudaBlockDim>... GId:Nat |-> cuda-dim-info(_, BlockDim:KResult) ...</cudaBlockDim>
        rule [cuda-launch-thread]:

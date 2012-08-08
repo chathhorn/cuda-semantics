@@ -267,6 +267,7 @@ module DYNAMIC-SEMANTICS-READING is
 		<k> extractByteFromMem(loc(Base:Nat, Offset:Nat, 0))
 			=> assert(notBool (loc(Base:Nat, Offset:Nat, 0)) in Locs:Bag, 3)
 			~> assert(Offset:Nat <Int Len:Nat, 2)
+                  ~> cuda-rc-read(loc(Base:Nat, Offset:Nat, 0))
 			~> tv(V:K, t(.Set, no-type))
 		...</k>
 		<br/>
@@ -283,6 +284,7 @@ module DYNAMIC-SEMANTICS-READING is
 	rule [read-byte-lazy]:
 		<k> extractByteFromMem(loc(Base:Nat, Offset:Nat, 0)) 
 			=> assert(Offset:Nat <Int Len:Nat, 2)
+                  ~> cuda-rc-read(loc(Base:Nat, Offset:Nat, 0))
 			~> tv(piece(unknown(numBitsPerByte), numBitsPerByte), t(.Set, no-type))
 		...</k>
 		<br/>
@@ -299,6 +301,7 @@ module DYNAMIC-SEMANTICS-READING is
 	rule [read-byte-buffer]:
 		<k> extractByteFromMem(Loc:Nat) 
 			=> assert(notBool Loc:Nat in Locs:Bag, 3)
+                  ~> cuda-rc-read(Loc:Nat)
 			~> tv(V:K, t(.Set, no-type))
 		...</k>
 		<locsWrittenTo> Locs:Bag </locsWrittenTo>

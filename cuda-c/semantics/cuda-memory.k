@@ -169,7 +169,7 @@ module CUDA-MEMORY is
                   => cuda-set-mdevice(Loc)
             ...</k>
             <gid> GId:Nat </gid>
-            where GId =/=Int 0
+            when GId =/=Int 0
 
       // Just like regular free.
       rule [cudaFree]:
@@ -319,6 +319,7 @@ module CUDA-MEMORY is
                   ~> cuda-join(GId:Nat) 
             ...</streamContents>
             <nextGid> GId:Nat => GId:Nat +Int 1 </nextGid>
+            <grids>... (. => GId:Nat |-> cuda-grid(Call(Identifier("cuda-memcpy-h2d"), .), 1, 1, 0)) ...</grids>
       rule [cuda-memcpy-d2h-stream]:
             <streamContents> cuda-memcpy-d2h(Dst:Nat, Src:Nat, Count:Nat)
                   => cuda-launch-thread(
@@ -328,6 +329,7 @@ module CUDA-MEMORY is
                   ~> cuda-join(GId:Nat) 
             ...</streamContents>
             <nextGid> GId:Nat => GId:Nat +Int 1 </nextGid>
+            <grids>... (. => GId:Nat |-> cuda-grid(Call(Identifier("cuda-memcpy-h2d"), .), 1, 1, 0)) ...</grids>
 
       // TODO: readActual and write-specific: these bypass the check for
       // reading/writing thread-local memory (e.g., stack), but they also
@@ -380,6 +382,7 @@ module CUDA-MEMORY is
                   ~> cuda-join(GId:Nat) 
             ...</streamContents>
             <nextGid> GId:Nat => GId:Nat +Int 1 </nextGid>
+            <grids>... (. => GId:Nat |-> cuda-grid(Call(Identifier("cuda-memcpy-h2d"), .), 1, 1, 0)) ...</grids>
 
       rule [cuda-memset-write]:
             <k> (.K => write(lv(Dst:Nat, t(.Set, char)), tv(Val:Int, t(.Set, char))))

@@ -32,7 +32,7 @@ cudaError_t cudaMemcpyAsync(void* dst, const void* src, size_t count, enum cudaM
 
 cudaError_t cudaHostAlloc(void** pHost, size_t size, unsigned flags); /*TODO*/
 cudaError_t cudaMallocHost(void** ptr, size_t size);
-cudaError_t cudaFreeHost(void* ptr);
+
 
 cudaError_t cudaMemset(void* devPtr, int value, size_t count);
 cudaError_t cudaMemsetAsync(void* devPtr, int value, size_t count, cudaStream_t stream);
@@ -117,11 +117,11 @@ __device__ float __tanf(float x);
 
 /* The CUDA version of malloc allocates global device memory. */
 
-__device__ void* malloc(size_t size);
-__device__ void free(void* ptr);
+__host__ __device__ void* malloc(size_t size);
+__host__ __device__ void free(void* ptr);
 
 /* Debugging. */
 
-__device__ int printf(const char * restrict format, ...);
+__host__ __device__ int printf(const char * restrict format, ...);
 
 #endif

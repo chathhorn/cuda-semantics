@@ -45,7 +45,8 @@ module CUDA-STREAMS-HEADER is
 end module
 
 module CUDA-THREADS-HEADER is
-      syntax K ::=  "cuda-launch-thread" "(" K "," Nat "," Nat "," Nat "," Set ")"
+      syntax K ::= "cuda-launch-thread" "(" K "," Nat "," Nat "," Nat "," Set ")"
+                 | "cuda-grid" "(" K "," Nat "," Nat "," Nat ")"
 end module
 
 module CUDA-DEVICES-HEADER is

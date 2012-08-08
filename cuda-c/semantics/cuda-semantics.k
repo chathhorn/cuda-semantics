@@ -5,6 +5,7 @@ load cuda-threads
 load cuda-streams
 load cuda-devices
 load cuda-math
+load cuda-racecheck
 
 module CUDA-SEMANTICS is
       including CUDA-TYPING
@@ -14,5 +15,6 @@ module CUDA-SEMANTICS is
       including CUDA-STREAMS
       including CUDA-DEVICES
       including CUDA-MATH
+	including CUDA-RACECHECK
 end module
 
