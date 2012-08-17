@@ -7,11 +7,21 @@ module CUDA-DECLARATIONS is
       including CUDA-TYPING-HEADER
       including CUDA-MEMORY-HEADER
 
+      declare incompleteToPointerType : Type -> Type
+	define incompleteToPointerType(t(S:Set, incompleteArrayType(T:KResult))) => t(S:Set, pointerType(T:KResult))
+	define incompleteToPointerType(t(S:Set, qualifiedType(T:KResult, K:K))) => t(S:Set, qualifiedType(incompleteToPointerType(T:KResult), K:K))
+	define incompleteToPointerType(t(S:Set, T:K)) => t(S:Set, T:K)
+		when getKLabel(T:K) =/=KLabel 'incompleteArrayType
+		andBool getKLabel(T:K) =/=KLabel 'qualifiedType 
+
       /*@ Declarations. */
-      // E.g., extern __shared__ int* shared;
+      // E.g., extern __shared__ int shared[];
+      // C.f., extern __shared__ int* shared; (not legal)
+      // TODO: This is pretty hackish, I just convert incomplete array types to
+      // pointer types.
        rule [cuda-declare-shared-dynamic]:
 		<k> declareInternalVariable(X:Id, T:KResult, NoInit)
-			=> declareWithLinkage(X:Id, T:KResult, SingleInit(tv(SharedLoc:Nat, unqualifyType(T:KResult))), noLinkage)
+			=> declareWithLinkage(X:Id, incompleteToPointerType(T:KResult), SingleInit(tv(SharedLoc:Nat, unqualifyType(incompleteToPointerType(T:KResult)))), noLinkage)
 		...</k>
             <gid> GId:Nat </gid>
             <bid> BId:Nat </bid>
@@ -22,7 +32,7 @@ module CUDA-DECLARATIONS is
 		andBool isExternType(T:KResult)
             andBool isCudaSharedType(T:KResult)
             // __shared__ and extern on anything but a pointer must be illegal.
-            andBool (isPointerType(T:KResult) orBool isIncompleteType(T:KResult))
+            andBool isIncompleteType(T:KResult)
 		[structural] 
 
        // TODO: Initializers (is that legal on shared variables?).

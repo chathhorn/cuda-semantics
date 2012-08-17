@@ -1,14 +1,14 @@
 load dynamic-c-semantics
-load cuda-helpers
 load cuda-headers
 
 module CUDA-MEMORY is
+      including DYNAMIC-C-SEMANTICS
       including CUDA-MEMORY-HEADER
       including CUDA-THREADS-HEADER
       including CUDA-STREAMS-HEADER
       including CUDA-DEVICES-HEADER
-      including CUDA-HELPERS
-      including DYNAMIC-C-SEMANTICS
+      including CUDA-DATATYPES-HEADER
+      including CUDA-ERRORS-HEADER
 
       syntax K ::= "cuda-set-mdevice" "(" Nat ")"
                  | "cuda-set-mhost" "(" Nat ")"
@@ -59,6 +59,7 @@ module CUDA-MEMORY is
 
       rule [cuda-set-mdevice]:
             <k> cuda-set-mdevice(loc(Base:Nat, _, _)) => . ...</k>
+            <cudaDeviceObjects> ... (. => ListItem(loc(Base:Nat, 0, 0))) </cudaDeviceObjects>
             <object>...
                   <basePtr> Base:Nat </basePtr>
                   <properties>... (. => cuda-mdevice) ...</properties>
@@ -73,6 +74,7 @@ module CUDA-MEMORY is
 
       rule [cuda-set-mshared]:
             <k> cuda-set-mshared(loc(Base:Nat, _, _)) => . ...</k>
+            <cudaSharedObjects> ... (. => ListItem(loc(Base:Nat, 0, 0))) </cudaSharedObjects>
             <object>...
                   <basePtr> Base:Nat </basePtr>
                   <properties>... (. => cuda-mshared) ...</properties>
@@ -124,7 +126,7 @@ module CUDA-MEMORY is
       rule [cudaMalloc]:
             <k> prepareBuiltin((Identifier("cudaMalloc")), (ReturnPtrLoc:KResult,,tv(Len:Nat, T:KResult)))
                   => Computation(*(ReturnPtrLoc) := cuda-malloc(Len:Nat))
-                  ~> cuda-success
+                  ~> cuda-return-success
             ...</k>
       rule [cuda-malloc]:
             <k> cuda-malloc(Len:Nat) 
@@ -140,14 +142,14 @@ module CUDA-MEMORY is
       rule [cudaMallocHost]:
             <k> prepareBuiltin((Identifier("cudaMallocHost")), (ReturnPtrLoc:KResult,,tv(Len:Nat, T:KResult)))
                   => Computation(*(ReturnPtrLoc) := cuda-host-alloc(Len:Nat))
-                  ~> cuda-success
+                  ~> cuda-return-success
             ...</k>
 
       // Pinned memory accessible from both host and device.
       rule [cudaHostAlloc]:
             <k> prepareBuiltin((Identifier("cudaHostAlloc")), (ReturnPtrLoc:KResult,,tv(Len:Nat, T:KResult),,tv(Flags:Nat, _)))
                   => Computation(*(ReturnPtrLoc) := cuda-host-alloc(Len:Nat))
-                  ~> cuda-success
+                  ~> cuda-return-success
             ...</k>
       rule [cuda-host-alloc]:
             <k> cuda-host-alloc(Len:Nat) 
@@ -175,14 +177,14 @@ module CUDA-MEMORY is
       rule [cudaFree]:
             <k> prepareBuiltin((Identifier("cudaFree")), tv(Loc:Nat, t(_, pointerType(_))))
                   => deleteSizedBlock(Loc:Nat, Len:Nat) 
-                  ~> cuda-success
+                  ~> cuda-return-success
             ...</k>
             <malloced>... Loc:Nat |-> Len:Nat => .Map ...</malloced>
 
       rule [cudaFreeHost]:
             <k> prepareBuiltin((Identifier("cudaFreeHost")), tv(Loc:Nat, t(_, pointerType(_))))
                   => deleteSizedBlock(Loc:Nat, Len:Nat) 
-                  ~> cuda-success
+                  ~> cuda-return-success
             ...</k>
             <malloced>... Loc:Nat |-> Len:Nat => .Map ...</malloced>
 
@@ -298,14 +300,14 @@ module CUDA-MEMORY is
       rule [cuda-memcpy-async-h2d]:
             <k> prepareBuiltin((Identifier("cudaMemcpyAsync")), (tv(Dst:Nat, t(_, pointerType(_))),, tv(Src:Nat, t(_, pointerType(_))),, tv(Count:Nat, _),, tv(Kind:Nat, _),, tv(SId:Nat, _)))
                   => cuda-put-in-stream(cuda-memcpy-h2d(Dst:Nat, Src:Nat, Count:Nat), SId) 
-                  ~> cuda-success
+                  ~> cuda-return-success
             ...</k>
             when Kind:Nat ==Int cudaMemcpyHostToDevice
             [structural]
       rule [cuda-memcpy-async-d2h]:
             <k> prepareBuiltin((Identifier("cudaMemcpyAsync")), (tv(Dst:Nat, t(_, pointerType(_))),, tv(Src:Nat, t(_, pointerType(_))),, tv(Count:Nat, _),, tv(Kind:Nat, _),, tv(SId:Nat, _)))
                   => cuda-put-in-stream(cuda-memcpy-d2h(Dst:Nat, Src:Nat, Count:Nat), SId) 
-                  ~> cuda-success
+                  ~> cuda-return-success
             ...</k>
             when Kind:Nat ==Int cudaMemcpyDeviceToHost
             [structural]
@@ -362,14 +364,14 @@ module CUDA-MEMORY is
       rule [cudaMemset]:
             <k> prepareBuiltin((Identifier("cudaMemset")), (tv(Dst:Nat, t(_, pointerType(_))),, Val:KResult,, tv(Count:Nat, _)))
                   => cuda-put-in-stream(cuda-memset(Dst:Nat, Val:KResult, Count:Nat), 0) 
-                  ~> cuda-success
+                  ~> cuda-return-success
             ...</k>
             [structural]
 
       rule [cudaMemsetAsync]:
             <k> prepareBuiltin((Identifier("cudaMemsetAsync")), (tv(Dst:Nat, t(_, pointerType(_))),, Val:KResult,, tv(Count:Nat, _),, tv(SId:Nat, _)))
                   => cuda-put-in-stream(cuda-memset(Dst:Nat, Val:KResult, Count:Nat), SId:Nat) 
-                  ~> cuda-success
+                  ~> cuda-return-success
             ...</k>
             [structural]
       

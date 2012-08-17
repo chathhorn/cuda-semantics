@@ -319,6 +319,15 @@ module COMMON-SEMANTICS-HELPERS-MISC is
 		...</k>
 		when S:String =/=String ""
 		[structural]
+      // CUDA...
+  	rule [write-string]:
+  		<k> writeString(lv(Loc:Nat, T:KResult), S:String)
+  			=> Computation(*(tv(Loc:Nat, t(.Set, pointerType(t(.Set, char))))) 
+  				:= tv(charToAscii(firstChar(S:String)), t(.Set, char)))
+  			~> writeString(lv(Loc:Nat +Int 1, T:KResult), butFirstChar(S:String))
+  		...</k>
+  		when S:String =/=String ""
+  		[structural]
 	// fixme this bare 4 needs to be updated to handle different size wchar_ts
 	rule [write-wstring]:
 		<k> writeWString(tv(Loc:Nat, T:KResult), (N:Nat,, S:List{K}))

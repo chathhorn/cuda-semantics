@@ -6,75 +6,187 @@ module CUDA-RACECHECK is
       including CUDA-RACECHECK-HEADER
       including DYNAMIC-C-SEMANTICS
 
-      syntax K ::= "cuda-rc-read-global" "(" K "," Nat ")"
-                 | "cuda-rc-read-shared" "(" K "," Nat ")"
-                 | "cuda-rc-write-global" "(" K "," Nat ")"
-                 | "cuda-rc-write-shared" "(" K "," Nat ")"
-      syntax K ::= "cuda-rc-update-read-global" "(" K "," Nat ")"
-                 | "cuda-rc-update-read-shared" "(" K "," Nat ")"
-                 | "cuda-rc-update-write-global" "(" K "," Nat ")"
-                 | "cuda-rc-update-write-shared" "(" K "," Nat ")"
-
-      syntax K ::= "cuda-rc-ensure-block-exists" "(" Nat "," Nat ")"
-
-      syntax K ::= "cuda-threadid" "(" Nat "," Nat "," Nat ")"
-                 | "cuda-blockid" "(" Nat "," Nat ")"
-
-      //                       this thread, firstRead, firstWrite, read/writeClosed, Loc
-      syntax K ::= "cuda-racecheck-read" "(" K "," K "," K "," Bool "," Nat ")"
-                 | "cuda-racecheck-write" "(" K "," K "," K "," Bool "," Nat ")"
-
       syntax K ::= "cuda-race" "(" Nat ")"
 
-// THE FUTURE?!?
-//      rule 
-//            <k> racecheck-read(ThreadId, rc-tuple(.K, FirstWrite, Closed))
-//                  => rc-tuple(ThreadId, FirstWrite, Closed)
-//            ...</k>
-//            when Closed =/=K cuda-read-closed
-//      rule 
-//            <k> racecheck-read(ThreadId, rc-tuple(FirstRead, FirstWrite, cuda-read-closed))
-//                  => cuda-race
-//            ...</k>
+      //                                  SId     GId     BId     TId
+      syntax KResult ::= "cuda-rc-id" "(" Nat "," Nat "," Nat "," Nat ")"
+      //                                   FR    FW     RC       WC       race
+                       | "cuda-rc-info" "(" K "," K "," Bool "," Bool "," Bool ")"
+
+      syntax K ::= "cuda-rc-new-info" "(" Nat ")"
+                 | "cuda-race" "(" Nat ")"
+      syntax K ::= "cuda-racecheck" "(" Nat "," KResult ")" [strict(2)]
+      syntax K ::= "cuda-rc-update-info" "(" KResult ")" [strict]
+
+      // TODO: should probably do some racechecking on delete. It should count
+      // as a write to every offset in the deleted structure.
+      rule [cuda-rc-on-delete-shared]:
+            <k> cuda-rc-on-delete(Loc:Nat, Attrs:Bag, RC:Map)
+                  => .
+            ...</k>
+            <cudaSharedObjects>... ListItem(Loc) => . ...</cudaSharedObjects>
+            <cudaDeviceObjects>... ListItem(Loc) => . ...</cudaDeviceObjects>
+            when (cuda-mshared in Attrs)
+      rule [cuda-rc-on-delete-device-only]:
+            <k> cuda-rc-on-delete(Loc:Nat, Attrs:Bag, RC:Map)
+                  => .
+            ...</k>
+            <cudaDeviceObjects>... ListItem(Loc) => . ...</cudaDeviceObjects>
+            when (cuda-mdevice in Attrs)
+            andBool notBool (cuda-mshared in Attrs)
+      rule [cuda-rc-on-delete-host]:
+            <k> cuda-rc-on-delete(Loc:Nat, Attrs:Bag, RC:Map)
+                  => .
+            ...</k>
+            when notBool (cuda-mdevice in Attrs)
+            andBool notBool (cuda-mshared in Attrs)
+
+      // *** Syncing.
       
-      declare cuda-racecheck-enable-shared : -> Bool
-      declare cuda-racecheck-enable-global : -> Bool
-
-      define cuda-racecheck-enable-shared => true
-      define cuda-racecheck-enable-global => false
-           
+      syntax K ::= "cuda-rc-sync" "(" List ")"
+      syntax K ::= "cuda-rc-sync-aux" "(" Nat ")"
       rule [cuda-rc-sync-shared-skip]:
-            <k> cuda-rc-sync-shared => . ...</k>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <existingBlocks> Existing:Set </existingBlocks>
-            when notBool (cuda-blockid(GId, BId) in Existing)
-      rule [cuda-rc-sync-shared]:
-            <k> cuda-rc-sync-shared => . ...</k>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <shared>...
-                  <sharedGid> GId </sharedGid>
-                  <sharedBid> BId </sharedBid>
-                  <firstRead> _ => . </firstRead>
-                  <firstWrite> _ => . </firstWrite>
-                  <readClosed> _ => . </readClosed>
-                  <writeClosed> _ => . </writeClosed>
-            ...</shared>
-
+            <k> cuda-rc-sync-shared 
+                  => cuda-rc-sync(SharedObjects:List) 
+            ...</k>
+            <cudaSharedObjects> SharedObjects:List </cudaSharedObjects>
+           
+      //    rule [cuda-rc-sync-global]:
+      //          <k> cuda-rc-sync-global 
+      //                => cuda-rc-sync(DeviceObjects:List) 
+      //          ...</k>
+      //          <cudaDeviceObjects> DeviceObjects:List </cudaDeviceObjects>
+      // TODO: Skipping global for now.
       rule [cuda-rc-sync-global]:
-            <k> cuda-rc-sync-global => . ...</k>
-            <globalFirstRead> _ => . </globalFirstRead>
-            <globalFirstWrite> _ => . </globalFirstWrite>
-            <globalReadClosed> _ => . </globalReadClosed>
-            <globalWriteClosed> _ => . </globalWriteClosed>
+            <k> cuda-rc-sync-global 
+                  => .
+            ...</k>
 
-      // A lot of copy/paste went into this creation. (TODO?)
+      rule [cuda-rc-sync]:
+            <k> (. => cuda-rc-sync-aux(Loc:Nat))
+                  ~> cuda-rc-sync((ListItem(Loc:Nat) => .) Locs:List)
+            ...</k>
+      rule [cuda-rc-sync-done]:
+            <k> cuda-rc-sync(.List)
+                  => .
+            ...</k>
 
-      // *** STEP 1: cuda-rc-read/write => cuda-rc-read/write-global/shared
+      rule [cuda-rc-sync-aux]:
+            <k> cuda-rc-sync-aux(loc(Base:Nat, 0, 0))
+                  => .
+            ...</k>
+            <object>...
+                  <basePtr> Base:Nat </basePtr>
+                  <cudaRacecheck> (_ => .Map)  </cudaRacecheck>
+            ...</object>
+
+      // *** Race checking.
+      
+      syntax K ::= "cuda-rc-put-info-R" "(" Nat "," KResult ")" [strict(2)]
+                 | "cuda-rc-put-info-W" "(" Nat "," KResult ")" [strict(2)]
+                 | "cuda-rc-get-info-R" "(" KResult ")"
+                 | "cuda-rc-get-info-W" "(" KResult ")"
+
+      rule [cuda-rc-put-info-R]:
+            <k> cuda-rc-put-info-R(loc(Base:Nat, Offset:Nat, 0), Info:K)
+                  => .
+            ...</k>
+            <object>...
+                  <basePtr> Base:Nat </basePtr>
+                  <cudaRacecheck>... 
+                        Offset |-> (_ => Info:K)
+                  ...</cudaRacecheck>
+            ...</object>
+      rule [cuda-rc-put-info-W]:
+            <k> cuda-rc-put-info-W(loc(Base:Nat, Offset:Nat, 0), cuda-rc-info(FW:K, FR:K, WC:Bool, RC:Bool, Race:Bool))
+                  => .
+            ...</k>
+            <object>...
+                  <basePtr> Base:Nat </basePtr>
+                  <cudaRacecheck>... 
+                        Offset |-> (_ => cuda-rc-info(FR:K, FW:K, RC:Bool, WC:Bool, Race:Bool))
+                  ...</cudaRacecheck>
+            ...</object>
+
+      rule [cuda-rc-get-info-R]:
+            <k> cuda-rc-get-info-R(loc(Base:Nat, Offset:Nat, 0))
+                  => Info:K
+            ...</k>
+            <object>...
+                  <basePtr> Base:Nat </basePtr>
+                  <cudaRacecheck>... 
+                        Offset |-> Info:K
+                  ...</cudaRacecheck>
+            ...</object>
+      rule [cuda-rc-get-info-W]:
+            <k> cuda-rc-get-info-W(loc(Base:Nat, Offset:Nat, 0))
+                  => cuda-rc-info(FW:K, FR:K, WC:Bool, RC:Bool, Race:Bool)
+            ...</k>
+            <object>...
+                  <basePtr> Base:Nat </basePtr>
+                  <cudaRacecheck>... 
+                        Offset |-> cuda-rc-info(FR:K, FW:K, RC:Bool, WC:Bool, Race:Bool)
+                  ...</cudaRacecheck>
+            ...</object>
+
+      rule <k> cuda-rc-update-info(cuda-rc-info(.K, FX:K, Closed:Bool, CX:Bool, Race:Bool))
+                  => cuda-rc-info(ID, FX:K, Closed:Bool, CX:Bool, Race:Bool)
+            ...</k>
+            <sid> SId:Nat </sid>
+            <gid> GId:Nat </gid>
+            <bid> BId:Nat </bid>
+            <tid> TId:Nat </tid>
+            where ID = cuda-rc-id(SId, GId, BId, TId)
+      rule <k> cuda-rc-update-info(cuda-rc-info(ID, FX:K, Closed:Bool, CX:Bool, Race:Bool))
+                  => cuda-rc-info(ID, FX:K, Closed:Bool, CX:Bool, Race:Bool)
+            ...</k>
+            <sid> SId:Nat </sid>
+            <gid> GId:Nat </gid>
+            <bid> BId:Nat </bid>
+            <tid> TId:Nat </tid>
+            where ID = cuda-rc-id(SId, GId, BId, TId)
+      rule <k> cuda-rc-update-info(cuda-rc-info(You:K, FX:K, Closed:Bool, CX:Bool, Race:Bool))
+                  => cuda-rc-info(You:K, FX:K, true, CX:Bool, Race:Bool)
+            ...</k>
+            <sid> SId:Nat </sid>
+            <gid> GId:Nat </gid>
+            <bid> BId:Nat </bid>
+            <tid> TId:Nat </tid>
+            when ID =/=K You:K
+            andBool You:K =/=K .K
+            where ID = cuda-rc-id(SId, GId, BId, TId)
+
+      // Detects a race for the "read" case, but we just twiddle the tuple and
+      // use it again for the "write" case. Same deal as above
+      // (cuda-rc-update-info).
+
+      rule [cuda-racecheck-skip]:
+            <k> cuda-racecheck(_, cuda-rc-info(FR:K, FW:K, false, _, _))
+                  => .
+            ...</k>
+            <sid> SId:Nat </sid>
+            <gid> GId:Nat </gid>
+            <bid> BId:Nat </bid>
+            <tid> TId:Nat </tid>
+            when (ID ==K FW orBool FW ==K .K)
+            where ID = cuda-rc-id(SId, GId, BId, TId)
+      rule [cuda-racecheck-race]: 
+            <k> cuda-racecheck(Loc:K, cuda-rc-info(FR:K, FW:K, false, _, _))
+                  => cuda-race(Loc)
+            ...</k>
+            <sid> SId:Nat </sid>
+            <gid> GId:Nat </gid>
+            <bid> BId:Nat </bid>
+            <tid> TId:Nat </tid>
+            when (ID =/=K FW andBool FW =/=K .K)
+            where ID = cuda-rc-id(SId, GId, BId, TId)
+      rule [cuda-racecheck-closed]: 
+            <k> cuda-racecheck(Loc:K, cuda-rc-info(_, _, true, _, _))
+                  => cuda-race(Loc)
+            ...</k>
 
       rule [cuda-rc-read-skip]:
-            <k> cuda-rc-read(loc(Base:Nat, _, 0)) // the "0" is the bitoffset
+            <k> cuda-rc-read(loc(Base:Nat, Offset:Nat, _))
                   => .
             ...</k>
             <object>...
@@ -83,56 +195,33 @@ module CUDA-RACECHECK is
             ...</object>
             when notBool (cuda-mshared in Attr:Bag)
             andBool notBool (cuda-mdevice in Attr:Bag)
-
-      rule [cuda-rc-read-global]:
-            <k> cuda-rc-read(loc(Base:Nat, Offset:Nat, 0))
-                  => cuda-rc-update-read-global(cuda-threadid(GId, BId, TId), loc(Base, Offset, 0))
-                  ~> cuda-rc-read-global(cuda-threadid(GId, BId, TId), loc(Base, Offset, 0))
-            ...</k>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <tid> TId:Nat </tid>
-            <object>...
-                  <basePtr> Base:Nat </basePtr>
-                  <properties> Attr:Bag </properties>
-            ...</object>
-            when notBool (cuda-mshared in Attr:Bag)
-            andBool (cuda-mdevice in Attr:Bag)
-            andBool cuda-racecheck-enable-global
-      rule <k> cuda-rc-read(loc(Base:Nat, _, _)) => . ...</k>
-            <object>...
-                  <basePtr> Base:Nat </basePtr>
-                  <properties> Attr:Bag </properties>
-            ...</object>
-            when notBool (cuda-mshared in Attr:Bag)
-            andBool (cuda-mdevice in Attr:Bag)
-            andBool notBool cuda-racecheck-enable-global
-
       rule [cuda-rc-read-shared]:
-            <k> cuda-rc-read(loc(Base:Nat, Offset:Nat, 0))
-                  => cuda-rc-ensure-block-exists(GId:Nat, BId:Nat)
-                  ~> cuda-rc-update-read-shared(cuda-threadid(GId, BId, TId), loc(Base, Offset, 0))
-                  ~> cuda-rc-read-shared(cuda-threadid(GId, BId, TId), loc(Base, Offset, 0))
+            <k> cuda-rc-read(LOC)
+                  => cuda-rc-new-info(LOC)
+                  ~> cuda-rc-put-info-R(LOC, cuda-rc-update-info(cuda-rc-get-info-R(LOC)))
+                  ~> cuda-racecheck(LOC, cuda-rc-get-info-R(LOC))
             ...</k>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <tid> TId:Nat </tid>
             <object>...
                   <basePtr> Base:Nat </basePtr>
                   <properties> Attr:Bag </properties>
             ...</object>
-            when cuda-mshared in Attr:Bag
-            andBool cuda-racecheck-enable-shared
-      rule <k> cuda-rc-read(loc(Base:Nat, _, _)) => . ...</k>
+            when (cuda-mshared in Attr:Bag)
+            where LOC = loc(Base:Nat, Offset:Nat, 0)
+      // Skipping global for now.
+      rule [cuda-rc-read-global]:
+            <k> cuda-rc-read(LOC)
+                  => .
+            ...</k>
             <object>...
                   <basePtr> Base:Nat </basePtr>
                   <properties> Attr:Bag </properties>
             ...</object>
-            when cuda-mshared in Attr:Bag
-            andBool notBool cuda-racecheck-enable-shared
+            when notBool (cuda-mshared in Attr:Bag)
+            //andBool (cuda-mdevice in Attr:Bag)
+            where LOC = loc(Base:Nat, Offset:Nat, 0)
 
       rule [cuda-rc-write-skip]:
-            <k> cuda-rc-write(loc(Base:Nat, _, 0)) // the "0" is the bitoffset
+            <k> cuda-rc-write(loc(Base:Nat, Offset:Nat, 0))
                   => .
             ...</k>
             <object>...
@@ -141,366 +230,65 @@ module CUDA-RACECHECK is
             ...</object>
             when notBool (cuda-mshared in Attr:Bag)
             andBool notBool (cuda-mdevice in Attr:Bag)
-
-      rule [cuda-rc-write-global]:
-            <k> cuda-rc-write(loc(Base:Nat, Offset:Nat, 0))
-                  => cuda-rc-update-write-global(cuda-threadid(GId, BId, TId), loc(Base, Offset, 0))
-                  ~> cuda-rc-write-global(cuda-threadid(GId, BId, TId), loc(Base, Offset, 0))
+      rule [cuda-rc-write-shared]:
+            <k> cuda-rc-write(LOC)
+                  => cuda-rc-new-info(LOC)
+                  ~> cuda-rc-put-info-W(LOC, cuda-rc-update-info(cuda-rc-get-info-W(LOC)))
+                  ~> cuda-racecheck(LOC, cuda-rc-get-info-W(LOC))
             ...</k>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <tid> TId:Nat </tid>
+            <object>...
+                  <basePtr> Base:Nat </basePtr>
+                  <properties> Attr:Bag </properties>
+            ...</object>
+            when (cuda-mshared in Attr:Bag)
+            where LOC = loc(Base:Nat, Offset:Nat, 0)
+      // Skipping global for now.
+      rule [cuda-rc-write-global]:
+            <k> cuda-rc-write(LOC)
+                  => .
+            ...</k>
             <object>...
                   <basePtr> Base:Nat </basePtr>
                   <properties> Attr:Bag </properties>
             ...</object>
             when notBool (cuda-mshared in Attr:Bag)
-            andBool (cuda-mdevice in Attr:Bag)
-            andBool cuda-racecheck-enable-global
-      rule <k> cuda-rc-write(loc(Base:Nat, _, _)) => . ...</k>
+            //andBool (cuda-mdevice in Attr:Bag)
+            where LOC = loc(Base:Nat, Offset:Nat, 0)
+
+      rule [cuda-rc-new-info-skip]:
+            <k> cuda-rc-new-info(loc(Base:Nat, Offset:Nat, _))
+                  => .
+            ...</k>
             <object>...
                   <basePtr> Base:Nat </basePtr>
-                  <properties> Attr:Bag </properties>
+                  <cudaRacecheck>... Offset |-> _ ...</cudaRacecheck>
             ...</object>
-            when notBool (cuda-mshared in Attr:Bag)
-            andBool (cuda-mdevice in Attr:Bag)
-            andBool notBool cuda-racecheck-enable-global
-
-      rule [cuda-rc-write-shared]:
-            <k> cuda-rc-write(loc(Base:Nat, Offset:Nat, 0))
-                  => cuda-rc-ensure-block-exists(GId, BId)
-                  ~> cuda-rc-update-write-shared(cuda-threadid(GId, BId, TId), loc(Base, Offset, 0))
-                  ~> cuda-rc-write-shared(cuda-threadid(GId, BId, TId), loc(Base, Offset, 0))
+      rule [cuda-rc-new-info]:
+            <k> cuda-rc-new-info(loc(Base:Nat, Offset:Nat, _))
+                  => .
             ...</k>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <tid> TId:Nat </tid>
             <object>...
                   <basePtr> Base:Nat </basePtr>
-                  <properties> Attr:Bag </properties>
+                  <cudaRacecheck> Info:Map (. => Offset |-> cuda-rc-info(.K, .K, false, false, false)) </cudaRacecheck>
             ...</object>
-            when cuda-mshared in Attr:Bag
-            andBool cuda-racecheck-enable-shared
-      rule <k> cuda-rc-write(loc(Base:Nat, _, _)) => . ...</k>
+            when notBool (Offset:Nat in keys Info:Map)
+
+      // Skip printing if this location has already been raced.
+      rule [cuda-race-skip]:
+            <k> cuda-race(LOC)
+                  => .
+            ...</k>
             <object>...
                   <basePtr> Base:Nat </basePtr>
-                  <properties> Attr:Bag </properties>
+                  <cudaRacecheck>... 
+                        Offset |-> cuda-rc-info(_, _, _, _, true) 
+                  ...</cudaRacecheck>
             ...</object>
-            when cuda-mshared in Attr:Bag
-            andBool notBool cuda-racecheck-enable-shared
-
-      // *** STEP 1b: cuda-rc-ensure-block-exists => . (shared only)
-      
-      rule [cuda-rc-ensure-block-exists]:
-            <k> cuda-rc-ensure-block-exists(GId:Nat, BId:Nat)
-                  => .
-            ...</k>
-            <existingBlocks>... SetItem(cuda-blockid(GId, BId)) ...</existingBlocks>
-      rule [cuda-rc-ensure-block-exists]:
-            <k> cuda-rc-ensure-block-exists(GId:Nat, BId:Nat)
-                  => .
-            ...</k>
-            <existingBlocks> Existing:Set (. => SetItem(cuda-blockid(GId, BId))) </existingBlocks>
-            (. => <shared>...
-                  <sharedGid> GId </sharedGid>
-                  <sharedBid> BId </sharedBid>
-                  ...</shared>)
-            when notBool (cuda-blockid(GId, BId) in Existing) 
-
-      // *** STEP 2: cuda-rc-update-read/write-global/shared => .
-      
-      // cuda-rc-update-read-global => .
-      
-      rule [cuda-rc-update-read-global-first]:
-            <k> cuda-rc-update-read-global(ThreadId:K, Loc:Nat)
-                  => .
-            ...</k>
-            <globalFirstRead> FirstRead:Map (. => Loc:Nat |-> ThreadId) </globalFirstRead>
-            when notBool (Loc:Nat in keys FirstRead:Map)
-      rule [cuda-rc-update-read-global-already-first]:
-            <k> cuda-rc-update-read-global(ThreadId:K, Loc:Nat)
-                  => .
-            ...</k>
-            <globalFirstRead>...  Loc:Nat |-> ThreadId ...</globalFirstRead>
-      rule [cuda-rc-update-read-global-close-write]:
-            <k> cuda-rc-update-read-global(ThreadId:K, Loc:Nat)
-                  => .
-            ...</k>
-            <globalFirstRead>...  Loc:Nat |-> OtherId:K ...</globalFirstRead>
-            <globalWriteClosed>... (. => SetItem(Loc)) ...</globalWriteClosed>
-            when OtherId =/=K ThreadId
-      
-      // cuda-rc-update-write-global => .
-
-      rule [cuda-rc-update-write-global-first]:
-            <k> cuda-rc-update-write-global(ThreadId:K, Loc:Nat)
-                  => .
-            ...</k>
-            <globalFirstWrite> FirstWrite:Map (. => Loc:Nat |-> ThreadId) </globalFirstWrite>
-            when notBool (Loc:Nat in keys FirstWrite:Map)
-      rule [cuda-rc-update-write-global-already-first]:
-            <k> cuda-rc-update-write-global(ThreadId:K, Loc:Nat)
-                  => .
-            ...</k>
-            <globalFirstWrite>...  Loc:Nat |-> ThreadId ...</globalFirstWrite>
-      rule [cuda-rc-update-write-global-close-read]:
-            <k> cuda-rc-update-write-global(ThreadId:K, Loc:Nat)
-                  => .
-            ...</k>
-            <globalFirstWrite>...  Loc:Nat |-> OtherId:K ...</globalFirstWrite>
-            <globalReadClosed>... (. => SetItem(Loc)) ...</globalReadClosed>
-            when OtherId =/=K ThreadId
-
-      // Global done, now shared.
-      
-      // cuda-rc-update-read-shared => .
-      
-      rule [cuda-rc-update-read-shared-first]:
-            <k> cuda-rc-update-read-shared(ThreadId:K, Loc:Nat)
-                  => .
-            ...</k>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <shared>...
-                  <sharedGid> GId:Nat </sharedGid>
-                  <sharedBid> BId:Nat </sharedBid>
-                  <firstRead> FirstRead:Map (. => Loc:Nat |-> ThreadId) </firstRead>
-            ...</shared>
-            when notBool (Loc:Nat in keys FirstRead:Map)
-      rule [cuda-rc-update-read-shared-already-first]:
-            <k> cuda-rc-update-read-global(ThreadId:K, Loc:Nat)
-                  => .
-            ...</k>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <shared>...
-                  <sharedGid> GId:Nat </sharedGid>
-                  <sharedBid> BId:Nat </sharedBid>
-                  <firstRead>...  Loc:Nat |-> ThreadId ...</firstRead>
-            ...</shared>
-      rule [cuda-rc-update-read-shared-close-write]:
-            <k> cuda-rc-update-read-shared(ThreadId:K, Loc:Nat)
-                  => .
-            ...</k>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <shared>...
-                  <sharedGid> GId:Nat </sharedGid>
-                  <sharedBid> BId:Nat </sharedBid>
-                  <firstRead>...  Loc:Nat |-> OtherId:K ...</firstRead>
-                  <writeClosed>... (. => SetItem(Loc)) ...</writeClosed>
-            ...</shared>
-            when OtherId =/=K ThreadId
-      
-      // cuda-rc-update-write-shared => .
-
-      rule [cuda-rc-update-write-shared-first]:
-            <k> cuda-rc-update-write-shared(ThreadId:K, Loc:Nat)
-                  => .
-            ...</k>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <shared>...
-                  <sharedGid> GId:Nat </sharedGid>
-                  <sharedBid> BId:Nat </sharedBid>
-                  <firstWrite> FirstWrite:Map (. => Loc:Nat |-> ThreadId) </firstWrite>
-            ...</shared>
-            when notBool (Loc:Nat in keys FirstWrite:Map)
-      rule [cuda-rc-update-write-shared-already-first]:
-            <k> cuda-rc-update-write-shared(ThreadId:K, Loc:Nat)
-                  => .
-            ...</k>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <shared>...
-                  <sharedGid> GId:Nat </sharedGid>
-                  <sharedBid> BId:Nat </sharedBid>
-                  <firstWrite>...  Loc:Nat |-> ThreadId ...</firstWrite>
-            ...</shared>
-      rule [cuda-rc-update-write-shared-close-read]:
-            <k> cuda-rc-update-write-shared(ThreadId:K, Loc:Nat)
-                  => .
-            ...</k>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <shared>...
-                  <sharedGid> GId:Nat </sharedGid>
-                  <sharedBid> BId:Nat </sharedBid>
-                  <firstWrite>...  Loc:Nat |-> OtherId:K ...</firstWrite>
-                  <readClosed>... (. => SetItem(Loc)) ...</readClosed>
-            ...</shared>
-            when OtherId =/=K ThreadId
-
-      // *** STEP 3: cuda-rc-read/write-global/shared => cuda-racecheck-read/write
-
-      // cuda-rc-read-global => cuda-racecheck-read
-      
-      rule [cuda-rc-read-global]:
-            <k> cuda-rc-read-global(ThreadId:K, Loc:Nat)
-                  => cuda-racecheck-read(ThreadId, ReadId, WriteId, CLOSED, Loc:Nat)
-            ...</k>
-            <globalFirstRead>... Loc:Nat |-> ReadId:K ...</globalFirstRead> 
-            <globalFirstWrite>... Loc:Nat |-> WriteId:K ...</globalFirstWrite>
-            <globalReadClosed> ReadClosed:Set </globalReadClosed>
-            where CLOSED = Loc:Nat in ReadClosed:Set
-      // Not possible:
-      // rule [cuda-rc-read-global-no-first-read]:
-      rule [cuda-rc-read-global-no-first-write]:
-            <k> cuda-rc-read-global(ThreadId:K, Loc:Nat)
-                  => cuda-racecheck-read(ThreadId, ReadId, .K, CLOSED, Loc:Nat)
-            ...</k>
-            <globalFirstRead>... Loc:Nat |-> ReadId:K ...</globalFirstRead> 
-            <globalFirstWrite> FirstWrite:Map </globalFirstWrite>
-            <globalReadClosed> ReadClosed:Set </globalReadClosed>
-            when notBool (Loc:Nat in keys FirstWrite:Map)
-            where CLOSED = Loc:Nat in ReadClosed:Set
-      // Not possible:
-      // rule [cuda-rc-read-global-no-first-read-write]:
-      
-      // cuda-rc-write-global => cuda-racecheck-write
-      
-      rule [cuda-rc-write-global]:
-            <k> cuda-rc-write-global(ThreadId:K, Loc:Nat)
-                  => cuda-racecheck-write(ThreadId, ReadId, WriteId, CLOSED, Loc:Nat)
-            ...</k>
-            <globalFirstRead>... Loc:Nat |-> ReadId:K ...</globalFirstRead> 
-            <globalFirstWrite>... Loc:Nat |-> WriteId:K ...</globalFirstWrite>
-            <globalWriteClosed> WriteClosed:Set </globalWriteClosed>
-            where CLOSED = Loc:Nat in WriteClosed:Set
-      // Not possible:
-      // rule [cuda-rc-write-global-no-first-write]:
-      rule [cuda-rc-write-global-no-first-write]:
-            <k> cuda-rc-write-global(ThreadId:K, Loc:Nat)
-                  => cuda-racecheck-write(ThreadId, .K, WriteId, CLOSED, Loc:Nat)
-            ...</k>
-            <globalFirstRead> FirstRead:Map </globalFirstRead> 
-            <globalFirstWrite>... Loc:Nat |-> WriteId:K ...</globalFirstWrite>
-            <globalWriteClosed> WriteClosed:Set </globalWriteClosed>
-            when notBool (Loc:Nat in keys FirstRead:Map)
-            where CLOSED = Loc:Nat in WriteClosed:Set
-      // Not possible:
-      // rule [cuda-rc-write-global-no-first-write-read]:
-      
-      // Global done, now shared.
-
-      // cuda-rc-read-shared => cuda-racecheck-read
-      
-      rule [cuda-rc-read-shared]:
-            <k> cuda-rc-read-shared(ThreadId:K, Loc:Nat)
-                  => cuda-racecheck-read(ThreadId, ReadId, WriteId, CLOSED, Loc:Nat)
-            ...</k>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <shared>...
-                  <sharedGid> GId:Nat </sharedGid>
-                  <sharedBid> BId:Nat </sharedBid>
-                  <firstRead>... Loc:Nat |-> ReadId:K ...</firstRead> 
-                  <firstWrite>... Loc:Nat |-> WriteId:K ...</firstWrite>
-                  <readClosed> ReadClosed:Set </readClosed>
-            ...</shared>
-            where CLOSED = Loc:Nat in ReadClosed:Set
-      // Not possible:
-      // rule [cuda-rc-read-shared-no-first-read]:
-      rule [cuda-rc-read-shared-no-first-write]:
-            <k> cuda-rc-read-shared(ThreadId:K, Loc:Nat)
-                  => cuda-racecheck-read(ThreadId, ReadId, .K, CLOSED, Loc:Nat)
-            ...</k>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <shared>...
-                  <sharedGid> GId:Nat </sharedGid>
-                  <sharedBid> BId:Nat </sharedBid>
-                  <firstRead>... Loc:Nat |-> ReadId:K ...</firstRead> 
-                  <firstWrite> FirstWrite:Map </firstWrite>
-                  <readClosed> ReadClosed:Set </readClosed>
-            ...</shared>
-            when notBool (Loc:Nat in keys FirstWrite:Map)
-            where CLOSED = Loc:Nat in ReadClosed:Set
-      // Not possible:
-      // rule [cuda-rc-read-global-no-first-read-write]:
-      
-      // cuda-rc-write-shared => cuda-racecheck-write
-      
-      rule [cuda-rc-write-shared]:
-            <k> cuda-rc-write-shared(ThreadId:K, Loc:Nat)
-                  => cuda-racecheck-write(ThreadId, ReadId, WriteId, CLOSED, Loc:Nat)
-            ...</k>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <shared>...
-                  <sharedGid> GId:Nat </sharedGid>
-                  <sharedBid> BId:Nat </sharedBid>
-                  <firstRead>... Loc:Nat |-> ReadId:K ...</firstRead> 
-                  <firstWrite>... Loc:Nat |-> WriteId:K ...</firstWrite>
-                  <writeClosed> WriteClosed:Set </writeClosed>
-            ...</shared>
-            where CLOSED = Loc:Nat in WriteClosed:Set
-      // Not possible:
-      // rule [cuda-rc-write-shared-no-first-write]:
-      rule [cuda-rc-write-shared-no-first-write]:
-            <k> cuda-rc-write-shared(ThreadId:K, Loc:Nat)
-                  => cuda-racecheck-write(ThreadId, .K, WriteId, CLOSED, Loc:Nat)
-            ...</k>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <shared>...
-                  <sharedGid> GId:Nat </sharedGid>
-                  <sharedBid> BId:Nat </sharedBid>
-                  <firstRead> FirstRead:Map </firstRead> 
-                  <firstWrite>... Loc:Nat |-> WriteId:K ...</firstWrite>
-                  <writeClosed> WriteClosed:Set </writeClosed>
-            ...</shared>
-            when notBool (Loc:Nat in keys FirstRead:Map)
-            where CLOSED = Loc:Nat in WriteClosed:Set
-      // Not possible:
-      // rule [cuda-rc-write-global-no-first-write-read]:
-
-      // *** STEP 4: cuda-racecheck-read/write => . or cuda-race
-
-      // cuda-racecheck-read => . or cuda-race
-
-      rule [cuda-racecheck-read-pass]:
-            <k> cuda-racecheck-read(ThreadId:K, FirstRead:K, FirstWrite:K, false, Loc:Nat)
-                  => .
-            ...</k>
-            when ThreadId ==K FirstRead
-            orBool ThreadId ==K FirstWrite
-            orBool FirstWrite ==K .K
-      rule [cuda-racecheck-read-closed]:
-            <k> cuda-racecheck-read(ThreadId:K, FirstRead:K, FirstWrite:K, true, Loc:Nat)
-                  => cuda-race(Loc)
-            ...</k>
-      rule [cuda-racecheck-read-write]:
-            <k> cuda-racecheck-read(ThreadId:K, FirstRead:K, FirstWrite:K, false, Loc:Nat)
-                  => cuda-race(Loc)
-            ...</k> 
-            when ThreadId =/=K FirstWrite
-            andBool FirstWrite =/=K .K
-
-      // cuda-racecheck-write => . or cuda-race
-      
-      rule [cuda-racecheck-write-pass]:
-            <k> cuda-racecheck-write(ThreadId:K, FirstRead:K, FirstWrite:K, false, Loc:Nat)
-                  => .
-            ...</k>
-            when ThreadId ==K FirstRead
-            orBool ThreadId ==K FirstWrite
-            orBool FirstRead ==K .K
-      rule [cuda-racecheck-write-closed]:
-            <k> cuda-racecheck-write(ThreadId:K, FirstRead:K, FirstWrite:K, true, Loc:Nat)
-                  => cuda-race(Loc)
-            ...</k>
-      rule [cuda-racecheck-write-read]:
-            <k> cuda-racecheck-write(ThreadId:K, FirstRead:K, FirstWrite:K, false, Loc:Nat)
-                  => cuda-race(Loc)
-            ...</k>
-            when ThreadId =/=K FirstRead
-            andBool FirstRead =/=K .K
-
+            where LOC = loc(Base:Nat, Offset:Nat, 0)
       rule [cuda-race]:
-            <k> cuda-race(loc(Base:Nat, Offset:Nat, _))
+            <k> cuda-race(LOC)
                   => writeToFD(1, 
-                        "CUDA: Race at " +String pointerToString(loc(Base:Nat, Offset:Nat, 0))
+                        "CUDA: Race at " +String pointerToString(LOC)
                         +String
                         #if (cuda-mshared in Attr:Bag) 
                         #then " (shared)"
@@ -508,6 +296,7 @@ module CUDA-RACECHECK is
                         #fi
                         +String " detected in thread"
                         +String " [" 
+                        +String toString(SId:Nat) +String ", "
                         +String toString(GId:Nat) +String ", "
                         +String toString(BId:Nat) +String ", "
                         +String toString(TId:Nat)
@@ -516,13 +305,17 @@ module CUDA-RACECHECK is
                         +String ".\n")
                   ~> flush(1)
             ...</k>
+            <sid> SId:Nat </sid>
             <gid> GId:Nat </gid>
             <bid> BId:Nat </bid>
             <tid> TId:Nat </tid>
-            //<grids>... GId:Nat |-> cuda-grid(Call(Identifier(F:String), _), _, _, _) ...</grids>
             <object>...
                   <basePtr> Base:Nat </basePtr>
                   <properties> Attr:Bag </properties>
+                  <cudaRacecheck>... 
+                        Offset |-> cuda-rc-info(_, _, _, _, (false => true)) 
+                  ...</cudaRacecheck>
             ...</object>
+            where LOC = loc(Base:Nat, Offset:Nat, 0)
 
 end module

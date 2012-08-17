@@ -40,7 +40,7 @@ __global__ void freemem() {
 }
 
 int main() {
-      // cudaDeviceSetLimit(cudaLimitMallocHeapSize, 128*1024*1024);
+      cudaDeviceSetLimit(cudaLimitMallocHeapSize, 128*1024*1024);
       // Allocate memory
       allocmem<<< NUM_BLOCKS, 10 >>>();
       // Use memory

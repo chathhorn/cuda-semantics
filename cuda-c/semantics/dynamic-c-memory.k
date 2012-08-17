@@ -757,6 +757,7 @@ end module
 module DYNAMIC-C-MEMORY-MISC is
 	including DYNAMIC-MEMORY-INCLUDE 
       including CUDA-MEMORY-HEADER
+      including CUDA-RACECHECK-HEADER
 
 	// used by calloc
 	rule
@@ -777,21 +778,29 @@ module DYNAMIC-C-MEMORY-MISC is
 		[structural]
 		
 	rule [delete-sized-block]:
-		<k> deleteSizedBlock(loc(Base:Nat, _:Nat, _:Nat), Len:Nat) => .K ...</k>
+		<k> deleteSizedBlock(loc(Base:Nat, _:Nat, _:Nat), Len:Nat) 
+                  => cuda-rc-on-delete(loc(Base:Nat, 0, 0), Attrs:Bag, RC:Map)
+            ...</k>
 		// <memory>...
 		(<object>...
 			<basePtr> Base:Nat </basePtr>
 			<oLength> Len:Nat </oLength>
+                  <properties> Attrs:Bag </properties>
+                  <cudaRacecheck> RC:Map </cudaRacecheck>
 		...</object> => .Bag)
 		// ...</memory>
 		<buffer> .List </buffer> // fixme could make this more relaxed by checking of block is in buffer, not just empty
 		[structural] 
 	
 	rule [delete-block]:
-		<k> deleteBlock(loc(Base:Nat, _:Nat, _:Nat)) => .K ...</k>
+		<k> deleteBlock(loc(Base:Nat, _:Nat, _:Nat)) 
+                  => cuda-rc-on-delete(loc(Base:Nat, 0, 0), Attrs:Bag, RC:Map)
+            ...</k>
 		// <memory>...
 		(<object>...
 			<basePtr> Base:Nat </basePtr>
+                  <properties> Attrs:Bag </properties>
+                  <cudaRacecheck> RC:Map </cudaRacecheck>
 		...</object> => .Bag)
 		// ...</memory>
 		<buffer> .List </buffer>

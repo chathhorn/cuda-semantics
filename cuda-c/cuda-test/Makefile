@@ -1,4 +1,4 @@
 all: 
 
 clean:
-	-rm ./*.log ./*.kdump a.out
+	-rm ./*.log ./*.kdump ./*.pre.gen a.out 

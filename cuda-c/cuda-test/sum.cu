@@ -3,17 +3,17 @@
 #include <stdlib.h>
 #include <cuda.h>
 
-#define NELEMENTS 16
+#define NELEMENTS 4
 // NRUNS should be < NELEMENTS.
 #define NRUNS 2
-#define NBLOCKS 4
+#define NBLOCKS 2
 // NTHREADS_PER_BLOCK*NBLOCKS should equal NELEMENTS
-#define NTHREADS_PER_BLOCK 4
+#define NTHREADS_PER_BLOCK 2
 // Also, NBLOCKS should equal NTHREADS_PER_BLOCK.
 
 // Sums an array in a very awkward way.
 __global__ void sum_kernel(int* g_idata, int* g_odata) {
-      extern __shared__ int* shared;
+      extern __shared__ int shared[];
       int i, gtid = blockIdx.x * blockDim.x + threadIdx.x;
       int tid = threadIdx.x;
 
@@ -37,13 +37,12 @@ __global__ void sum_kernel(int* g_idata, int* g_odata) {
 }
 
 int main(int argc, char** argv) {
-      int* d_idata, *d_odata, *h_data, *d_scratch;
+      int* d_idata, *d_odata, *d_scratch;
       int i;
+      int h_data[NELEMENTS];
 
       // Use a different stream for every run. 
       cudaStream_t streams[NRUNS];
-
-      h_data = (int*)malloc(NELEMENTS * sizeof(int));
 
       printf("INPUT: ");
       for(i = 0; i != NELEMENTS; ++i) {
@@ -52,15 +51,21 @@ int main(int argc, char** argv) {
       }
       printf("\n");
 
-      cudaMalloc(&d_idata, NELEMENTS * sizeof(int));
-      cudaMalloc(&d_odata, NRUNS * sizeof(int));
+      printf("Mallocing scratch.\n");
       cudaMalloc(&d_scratch, NBLOCKS * NRUNS * sizeof(int));
+      printf("Mallocing idata.\n");
+      cudaMalloc(&d_idata, NELEMENTS * sizeof(int));
+      printf("Mallocing odata.\n");
+      cudaMalloc(&d_odata, NRUNS * sizeof(int));
 
+      printf("Memcpy idata.\n");
       cudaMemcpy(d_idata, h_data, NELEMENTS * sizeof(int), cudaMemcpyHostToDevice);
 
+      printf("Memset odata.\n");
       cudaMemset(d_odata, 0, NRUNS * sizeof(int));
       // Initializing scratch so as to test racechecking (otherwise we might
       // get errors about accessing uninitialized memory).
+      printf("Memset scratch.\n");
       cudaMemset(d_scratch, 0, NBLOCKS * NRUNS * sizeof(int));
       
       printf("Launching %d blocks of %d threads each " 
@@ -70,7 +75,7 @@ int main(int argc, char** argv) {
       cudaDeviceSynchronize();
       for (i = 0; i != NRUNS; ++i) {
             cudaStreamCreate(&streams[i]);
-            sum_kernel<<< NBLOCKS, NTHREADS_PER_BLOCK, NELEMENTS * sizeof(int), streams[i] >>>
+            sum_kernel<<< NBLOCKS, NTHREADS_PER_BLOCK, NELEMENTS/NBLOCKS * sizeof(int), streams[i] >>>
                   (d_idata, &d_scratch[NBLOCKS * i]);
             sum_kernel<<< 1, NTHREADS_PER_BLOCK, NBLOCKS * sizeof(int), streams[i] >>>
                   (&d_scratch[NBLOCKS * i], &d_odata[i]);
@@ -89,7 +94,6 @@ int main(int argc, char** argv) {
       }
       printf("\n");
 
-      free(h_data);
       cudaFree(d_idata);
       cudaFree(d_odata);
       cudaFree(d_scratch);

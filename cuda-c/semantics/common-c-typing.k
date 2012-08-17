@@ -861,11 +861,12 @@ module COMMON-SEMANTICS-TYPE-MISC is
 	// */
 	define isArithmeticType(T:KResult) => hasIntegerType(T:KResult) orBool isFloatType(T:KResult)
 
-      // CUDA: enough?
+      // CUDA: made it recurse and work on prototypes.
 	define unqualifyType(t(_:Set, qualifiedType(T:KResult, _))) => unqualifyType(T:KResult)
+	define unqualifyType(t(_:Set, prototype(T:KResult))) => unqualifyType(T:KResult)
 	define unqualifyType(t(_:Set, T:K)) => t(.Set, T:K)
 		when getKLabel(T:K) =/=KLabel 'qualifiedType 
-		
+		andBool getKLabel(T:K) =/=KLabel 'prototype 
 		
 	define removeStorageSpecifiers(t(_:Set, qualifiedType(T:KResult, _))) => T:KResult 
 	define removeStorageSpecifiers(t(S:Set, T:K)) => t(S:Set, T:K)

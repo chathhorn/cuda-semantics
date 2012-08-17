@@ -12,8 +12,7 @@ __global__ void mallocTest() {
 int main() {
       // Set a heap size of 128 megabytes. Note that this must
       // be done before any kernel is launched.
-      // TODO
-      //cudaDeviceSetLimit(cudaLimitMallocHeapSize, 128*1024*1024);
+      cudaDeviceSetLimit(cudaLimitMallocHeapSize, 128*1024*1024);
       mallocTest<<<1, 5>>>();
       cudaDeviceSynchronize();
       return 0;

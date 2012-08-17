@@ -10,6 +10,7 @@ module COMMON-C-CONFIGURATION is
                   <grids> .Map </grids>
                   // CUDA: block-level memory.
                   <cudaShared> .Map </cudaShared>
+                  <cudaDeviceObjects> .List </cudaDeviceObjects>
                   // CUDA: streams.
                   <nextSid> 1 </nextSid>
                   <initializedStreams> .Set </initializedStreams>
@@ -18,27 +19,6 @@ module COMMON-C-CONFIGURATION is
                         <sid> 0 </sid>
                         <streamContents> .K </streamContents>
                   </stream>
-
-                  // Race checking.
-                  <existingBlocks> .Set </existingBlocks>
-                  <shared multiplicity="*">
-                        <sharedGid> 0 </sharedGid>
-                        <sharedBid> 0 </sharedBid>
-
-                        // Loc |-> Tid
-                        <firstRead> .Map </firstRead>
-                        <firstWrite> .Map </firstWrite>
-                        // Locs
-                        <readClosed> .Set </readClosed>
-                        <writeClosed> .Set </writeClosed>
-                  </shared>
-                  // Loc |-> Tid
-                  <globalFirstRead> .Map </globalFirstRead>
-                  <globalFirstWrite> .Map </globalFirstWrite>
-                  // Locs
-                  <globalReadClosed> .Set </globalReadClosed>
-                  <globalWriteClosed> .Set </globalWriteClosed>
-                  // Race checking done.
 
                   <cudaHostFunctions> .Set </cudaHostFunctions>
                   <cudaDeviceFunctions> .Set </cudaDeviceFunctions>
@@ -52,6 +32,13 @@ module COMMON-C-CONFIGURATION is
                   <initializedEvents> .Set </initializedEvents>
                   <pendingEvents> .Map </pendingEvents>
                   <recordedEvents> .Map </recordedEvents>
+
+                  // CUDA: Device settings.
+                  <cudaLastError> 0 </cudaLastError>
+                  <cudaDeviceCacheConfig> 0 </cudaDeviceCacheConfig>
+                  <cudaLimitStackSize> 0 </cudaLimitStackSize>
+                  <cudaLimitPrintFifoSize> 0 </cudaLimitPrintFifoSize>
+                  <cudaLimitMallocHeapSize> 0 </cudaLimitMallocHeapSize>
                   // CUDA done.
                   
 			<gotoMap color="lightgray"> .Map </gotoMap>
@@ -64,6 +51,7 @@ module COMMON-C-CONFIGURATION is
 					<oLength> 0 </oLength>
 					<properties> .Bag </properties>
 					<bytes> .Map </bytes>
+                              <cudaRacecheck> .Map </cudaRacecheck> // CUDA
 				</object>
 			</memory>
 			<notWritable> .Map </notWritable>
@@ -99,12 +87,14 @@ module COMMON-C-CONFIGURATION is
 				<thread multiplicity="*" color="yellow">
 
                               // CUDA thread stuff.
+                              <sid> 0 </sid> // Stream id.
                               <gid> 0 </gid> // Grid id.
                               <bid> 0 </bid> // Block id.
                               <tid> 0 </tid> // Thread id.
                               <threadAccess> .Set </threadAccess>
                               <blockIdx> .K </blockIdx>
                               <threadIdx> .K </threadIdx>
+                              <cudaSharedObjects> .List </cudaSharedObjects>
                               // CUDA stuff done.
 
 					<threadId color="yellow"> 0 </threadId>
