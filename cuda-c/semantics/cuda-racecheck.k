@@ -6,6 +6,20 @@ module CUDA-RACECHECK is
       including CUDA-RACECHECK-HEADER
       including DYNAMIC-C-SEMANTICS
 
+      ops   cuda-rc-read-m-aux
+            cuda-rc-write-m-aux
+            : Nat Bool -> K
+
+      macro cuda-rc-read-m(Loc:Nat) = cuda-rc-read-m-aux(Loc:Nat, cuda-cfg-raceChecking)
+
+      macro cuda-rc-read-m-aux(Loc:Nat, true) = cuda-rc-read(Loc:Nat)
+      macro cuda-rc-read-m-aux(Loc:Nat, false) = .K
+
+      macro cuda-rc-write-m(Loc:Nat) = cuda-rc-write-m-aux(Loc:Nat, cuda-cfg-raceChecking)
+
+      macro cuda-rc-write-m-aux(Loc:Nat, true) = cuda-rc-write(Loc:Nat)
+      macro cuda-rc-write-m-aux(Loc:Nat, false) = .K
+
       syntax K ::= "cuda-race" "(" Nat ")"
 
       //                                  SId     GId     BId     TId
@@ -17,6 +31,7 @@ module CUDA-RACECHECK is
                  | "cuda-race" "(" Nat ")"
       syntax K ::= "cuda-racecheck" "(" Nat "," KResult ")" [strict(2)]
       syntax K ::= "cuda-rc-update-info" "(" KResult ")" [strict]
+
 
       // TODO: should probably do some racechecking on delete. It should count
       // as a write to every offset in the deleted structure.

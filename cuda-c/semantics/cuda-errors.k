@@ -82,7 +82,7 @@ module CUDA-ERRORS is
       rule cuda-get-error-string(6) => "the launch timed out and was terminated" [structural anywhere]
       rule cuda-get-error-string(7) => "too many resources requested for launch" [structural anywhere]
       rule cuda-get-error-string(8) => "invalid device function " [structural anywhere]
-      rule cuda-get-error-string(9) => "invalid `configuration argument" // Tick before configuration keep K from spazzing. 
+      rule cuda-get-error-string(9) => "invalid config argument" // TODO: config for configuration keeps K from spazzing. 
             [structural anywhere]
       rule cuda-get-error-string(10) => "invalid device ordinal" [structural anywhere]
       rule cuda-get-error-string(11) => "invalid argument" [structural anywhere]
@@ -123,7 +123,7 @@ module CUDA-ERRORS is
       rule cuda-get-error-string(46) => "all CUDA-capable devices are busy or unavailable" [structural anywhere]
       rule cuda-get-error-string(47) => "device kernel image is invalid" [structural anywhere]
       rule cuda-get-error-string(48) => "no kernel image is available for execution on the device" [structural anywhere]
-      rule cuda-get-error-string(49) => "incompatible driver `context" // Tick before context keep K from spazzing. 
+      rule cuda-get-error-string(49) => "incompatible driver contxt" // TODO: contxt for context keeps K from spazzing. 
             [structural anywhere]
       rule cuda-get-error-string(50) => "peer access is already enabled" [structural anywhere]
       rule cuda-get-error-string(51) => "peer access has not been enabled" [structural anywhere]

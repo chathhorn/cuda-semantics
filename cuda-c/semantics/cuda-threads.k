@@ -9,7 +9,7 @@ module CUDA-THREADS is
       including CUDA-STREAMS-HEADER
       including CUDA-RACECHECK-HEADER
       including DYNAMIC-C-SEMANTICS
-      including CUDA-DEVICE-PROPERTIES-HEADER
+      including CUDA-PROPERTIES-HEADER
       including CUDA-ERRORS-HEADER
 
       // call, nblocks, threads per block, nshared, stream

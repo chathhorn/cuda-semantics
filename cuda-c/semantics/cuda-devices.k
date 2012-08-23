@@ -5,7 +5,7 @@ module CUDA-DEVICES is
       including DYNAMIC-C-SEMANTICS
       including CUDA-DEVICES-HEADER
       including CUDA-RACECHECK-HEADER
-      including CUDA-DEVICE-PROPERTIES-HEADER
+      including CUDA-PROPERTIES-HEADER
       including CUDA-DATATYPES-HEADER
       including CUDA-ERRORS-HEADER
 
@@ -35,52 +35,58 @@ module CUDA-DEVICES is
             <cudaDeviceCacheConfig> _ => CacheConfig </cudaDeviceCacheConfig>
 
       rule [cudaDeviceGetLimit-stack]:
-            <k> prepareBuiltin((Identifier("cudaDeviceGetLimit")), (PtrValue:KResult,, tv(cuda-limit-stack-size, _)))
+            <k> prepareBuiltin((Identifier("cudaDeviceGetLimit")), (PtrValue:KResult,, tv(LimitKind:Nat, _)))
                   => Computation(*(PtrValue) := tv(Limit:Nat, t(.Set, int)))
                   ~> cuda-return-success
             ...</k>
             <cudaLimitStackSize> Limit </cudaLimitStackSize>
+            when LimitKind ==Int cuda-limit-stack-size
       rule [cudaDeviceGetLimit-printfifo]:
-            <k> prepareBuiltin((Identifier("cudaDeviceGetLimit")), (PtrValue:KResult,, tv(cuda-limit-print-fifo-size, _)))
+            <k> prepareBuiltin((Identifier("cudaDeviceGetLimit")), (PtrValue:KResult,, tv(LimitKind:Nat, _)))
                   => Computation(*(PtrValue) := tv(Limit:Nat, t(.Set, int)))
                   ~> cuda-return-success
             ...</k>
             <cudaLimitPrintFifoSize> Limit </cudaLimitPrintFifoSize>
+            when LimitKind ==Int cuda-limit-printf-fifo-size
       rule [cudaDeviceGetLimit-heap]:
-            <k> prepareBuiltin((Identifier("cudaDeviceGetLimit")), (PtrValue:KResult,, tv(cuda-limit-malloc-heap-size, _)))
+            <k> prepareBuiltin((Identifier("cudaDeviceGetLimit")), (PtrValue:KResult,, tv(LimitKind:Nat, _)))
                   => Computation(*(PtrValue) := tv(Limit:Nat, t(.Set, int)))
                   ~> cuda-return-success
             ...</k>
             <cudaLimitMallocHeapSize> Limit </cudaLimitMallocHeapSize>
+            when LimitKind ==Int cuda-limit-malloc-heap-size
       rule [cudaDeviceGetLimit-invalid]:
             <k> prepareBuiltin((Identifier("cudaDeviceGetLimit")), (_,, tv(LimitKind:Nat, _)))
                   => cuda-return(cuda-error-unsupported-limit)
             ...</k>
             when LimitKind =/=Int cuda-limit-stack-size
-            andBool LimitKind =/=Int cuda-limit-print-fifo-size
+            andBool LimitKind =/=Int cuda-limit-printf-fifo-size
             andBool LimitKind =/=Int cuda-limit-malloc-heap-size
       
       rule [cudaDeviceSetLimit-stack]:
-            <k> prepareBuiltin((Identifier("cudaDeviceSetLimit")), (tv(cuda-limit-stack-size, _),, tv(Limit:Nat, _)))
+            <k> prepareBuiltin((Identifier("cudaDeviceSetLimit")), (tv(LimitKind:Nat, _),, tv(Limit:Nat, _)))
                   => cuda-return-success
             ...</k>
             <cudaLimitStackSize> _ => Limit </cudaLimitStackSize>
+            when LimitKind ==Int cuda-limit-stack-size
       rule [cudaDeviceSetLimit-printfifo]:
-            <k> prepareBuiltin((Identifier("cudaDeviceSetLimit")), (tv(cuda-limit-print-fifo-size, _),, tv(Limit:Nat, _)))
+            <k> prepareBuiltin((Identifier("cudaDeviceSetLimit")), (tv(LimitKind:Nat, _),, tv(Limit:Nat, _)))
                   => cuda-return-success
             ...</k>
             <cudaLimitPrintFifoSize> _ => Limit </cudaLimitPrintFifoSize>
+            when LimitKind ==Int cuda-limit-printf-fifo-size
       rule [cudaDeviceSetLimit-heap]:
-            <k> prepareBuiltin((Identifier("cudaDeviceSetLimit")), (tv(cuda-limit-malloc-heap-size, _),, tv(Limit:Nat, _)))
+            <k> prepareBuiltin((Identifier("cudaDeviceSetLimit")), (tv(LimitKind:Nat, _),, tv(Limit:Nat, _)))
                   => cuda-return-success
             ...</k>
             <cudaLimitMallocHeapSize> _ => Limit </cudaLimitMallocHeapSize>
+            when LimitKind ==Int cuda-limit-malloc-heap-size
       rule [cudaDeviceSetLimit-invalid]:
             <k> prepareBuiltin((Identifier("cudaDeviceSetLimit")), (tv(LimitKind:Nat, _),, _))
                   => cuda-return(cuda-error-unsupported-limit)
             ...</k>
             when LimitKind =/=Int cuda-limit-stack-size
-            andBool LimitKind =/=Int cuda-limit-print-fifo-size
+            andBool LimitKind =/=Int cuda-limit-printf-fifo-size
             andBool LimitKind =/=Int cuda-limit-malloc-heap-size
 
       // We've got one device so the choice is pretty easy.

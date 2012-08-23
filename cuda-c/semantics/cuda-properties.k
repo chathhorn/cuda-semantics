@@ -1,9 +1,9 @@
 load dynamic-c-semantics
 load cuda-headers
 
-module CUDA-DEVICE-PROPERTIES is
+module CUDA-PROPERTIES is
       including DYNAMIC-C-SEMANTICS
-      including CUDA-DEVICE-PROPERTIES-HEADER
+      including CUDA-PROPERTIES-HEADER
 
       /* Constants. */
 
@@ -12,8 +12,20 @@ module CUDA-DEVICE-PROPERTIES is
       macro cuda-func-cache-prefer-l1                = 2
 
       macro cuda-limit-stack-size                    = 0
-      macro cuda-limit-print-fifo-size               = 1
+      macro cuda-limit-printf-fifo-size               = 1
       macro cuda-limit-malloc-heap-size              = 2
+
+      macro cuda-memory-type-host                    = 1
+      macro cuda-memory-type-device                  = 2
+
+      /* Interpretter properties */
+
+      macro cuda-cfg-raceChecking                    = true
+
+      /* Software properties. */
+
+      macro cuda-cfg-driverVersion                   = 4020
+      macro cuda-cfg-runtimeVersion                  = 4020
 
       /* Device properties. */
 

@@ -11,7 +11,7 @@
 #define NTHREADS_PER_BLOCK 2
 // Also, NBLOCKS should equal NTHREADS_PER_BLOCK.
 
-// Sums an array in a very awkward way.
+// Sums an array.
 __global__ void sum_kernel(int* g_idata, int* g_odata) {
       extern __shared__ int shared[];
       int i, gtid = blockIdx.x * blockDim.x + threadIdx.x;

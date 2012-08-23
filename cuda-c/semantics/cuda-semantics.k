@@ -7,8 +7,9 @@ load cuda-streams
 load cuda-devices
 load cuda-math
 load cuda-racecheck
-load cuda-device-properties
+load cuda-properties
 load cuda-errors
+load cuda-execution
 
 module CUDA-SEMANTICS is
       including CUDA-TYPING
@@ -20,7 +21,8 @@ module CUDA-SEMANTICS is
       including CUDA-DEVICES
       including CUDA-MATH
 	including CUDA-RACECHECK
-	including CUDA-DEVICE-PROPERTIES
+	including CUDA-PROPERTIES
 	including CUDA-ERRORS
+      including CUDA-EXECUTION
 end module
 

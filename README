@@ -1,6 +1,0 @@
-Semantics in K for a few CUDA-like features implemented as extensions to a
-semantics for C and a toy language ("simple").
-
-For more about the K framework see: http://k-framework.org
-For more about the C semantics see: http://code.google.com/p/c-semantics/
-

@@ -28,6 +28,7 @@ module CUDA-DECLARATIONS is
             <cudaShared>... 
                   cuda-shared-loc(GId:Nat, BId:Nat, Identifier("$dynamic")) |-> SharedLoc:Nat 
             ...</cudaShared>
+            <cudaSharedObjects> ... (. => ListItem(SharedLoc)) </cudaSharedObjects>
 		when notBool isStaticType(T:KResult)
 		andBool isExternType(T:KResult)
             andBool isCudaSharedType(T:KResult)
@@ -48,6 +49,7 @@ module CUDA-DECLARATIONS is
             <cudaShared>... 
                   cuda-shared-loc(GId:Nat, BId:Nat, X:Id) |-> SharedLoc:Nat 
             ...</cudaShared>
+            <cudaSharedObjects> ... (. => ListItem(SharedLoc)) </cudaSharedObjects>
 		when notBool isStaticType(T:KResult)
 		andBool notBool isExternType(T:KResult)
             andBool isCudaSharedType(T:KResult)
@@ -64,6 +66,7 @@ module CUDA-DECLARATIONS is
             <cudaShared>... 
                   . => (cuda-shared-loc(GId:Nat, BId:Nat, X:Id) |-> loc(Base:Nat, 0, 0))
             ...</cudaShared>
+            <cudaSharedObjects> ... (. => ListItem(loc(Base:Nat, 0, 0))) </cudaSharedObjects>
             <freshNat> Fresh:Nat => Fresh:Nat +Int 1 </freshNat>
 		when notBool isStaticType(T:KResult)
 		andBool notBool isExternType(T:KResult)

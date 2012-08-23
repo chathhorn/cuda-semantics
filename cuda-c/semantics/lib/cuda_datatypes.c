@@ -1,5 +1,30 @@
 #include <cuda_datatypes.h>
 
+struct cudaExtent make_cudaExtent(size_t w, size_t h, size_t d) {
+      struct cudaExtent s;
+      s.width = w;
+      s.height = h;
+      s.depth = d;
+      return s;
+}
+
+struct cudaPitchedPtr make_cudaPitchedPtr(void* d, size_t p, size_t xsz, size_t ysz) {
+      struct cudaPitchedPtr s;
+      s.ptr = d;
+      s.pitch = p;
+      s.xsize = xsz;
+      s.ysize = ysz;
+      return s;
+}
+
+struct cudaPos make_cudaPos(size_t x, size_t y, size_t z) {
+      struct cudaPos s;
+      s.x = x;
+      s.y = y;
+      s.z = z;
+      return s;
+}
+
 #define DEF_VEC_MAKE1(T) \
       T ## 1 make_ ## T ## 1 (T x) { \
             T ## 2 v; \

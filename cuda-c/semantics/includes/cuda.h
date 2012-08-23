@@ -2,12 +2,15 @@
 #define _KCC_CUDA_H
 #include <kccSettings.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <cuda_datatypes.h>
 
 /* The CUDA Runtime API (abridged). */
 
 #define __CUDA_ARCH__ 200
 #define CUDART_VERSION 4020
+
+#define __restrict__ restrict
 
 /* Device Management */
 cudaError_t cudaChooseDevice(int* device, const struct cudaDeviceProp* prop);
@@ -47,17 +50,17 @@ cudaError_t cudaEventSynchronize(cudaEvent_t event);
 
 /* Execution Control */
 // cudaError_t cudaConfigureCall(dim3 gridDim, dim3 blockDim, size_t sharedMem, cudaStream_t stream);
-// cudaError_t cudaFuncGetAttributes(struct cudaFuncAttributes *attr, const char *func);
-// cudaError_t cudaFuncSetCacheConfig(const char *func, enum cudaFuncCache cacheConfig);
+// cudaError_t cudaFuncGetAttributes(struct cudaFuncAttributes* attr, const char* func);
+// cudaError_t cudaFuncSetCacheConfig(const char* func, enum cudaFuncCache cacheConfig);
 // cudaError_t cudaLaunch(const char *entry);
-// cudaError_t cudaSetDoubleForDevice(double *d);
-// cudaError_t cudaSetDoubleForHost(double *d);
-// cudaError_t cudaSetupArgument(const void *arg, size_t size, size_t offset);
+cudaError_t cudaSetDoubleForDevice(double* d);
+cudaError_t cudaSetDoubleForHost(double* d);
+// cudaError_t cudaSetupArgument(const void* arg, size_t size, size_t offset);
 
 /* Memory Management */
 cudaError_t cudaFree(void* devPtr);
 // cudaError_t cudaFreeArray(struct cudaArray* array);
-// TODO cudaError_t cudaFreeHost(void* ptr);
+cudaError_t cudaFreeHost(void* ptr);
 // cudaError_t cudaGetSymbolAddress(void** devPtr, const char* symbol);
 // cudaError_t cudaGetSymbolSize(size_t* size, const char* symbol);
 cudaError_t cudaHostAlloc(void** pHost, size_t size, unsigned int flags);
@@ -102,28 +105,18 @@ cudaError_t cudaMemset(void* devPtr, int value, size_t count);
 // cudaError_t cudaMemset3D(struct cudaPitchedPtr pitchedDevPtr, int value, struct cudaExtent extent);
 // cudaError_t cudaMemset3DAsync(struct cudaPitchedPtr pitchedDevPtr, int value, struct cudaExtent extent, cudaStream_t stream);
 cudaError_t cudaMemsetAsync(void* devPtr, int value, size_t count, cudaStream_t stream);
-// struct cudaExtent make_cudaExtent (size_t w, size_t h, size_t d);
-// struct cudaPitchedPtr make_cudaPitchedPtr (void* d, size_t p, size_t xsz, size_t ysz);
-// struct cudaPos make_cudaPos (size_t x, size_t y, size_t z);
 
 /* Unified Addressing */
-// cudaError_t cudaPointerGetAttributes(struct cudaPointerAttributes* attributes, void* ptr);
+cudaError_t cudaPointerGetAttributes(struct cudaPointerAttributes* attributes, void* ptr);
 
 /* Peer Device Memory Access */
 cudaError_t cudaDeviceCanAccessPeer(int* canAccessPeer, int device, int peerDevice);
 cudaError_t cudaDeviceDisablePeerAccess(int peerDevice);
 cudaError_t cudaDeviceEnablePeerAccess(int peerDevice, unsigned flags);
 
-/* 
- * Not included: 
- *       Graphics Interoperability
- *       Texture Reference Management
- *       Surface Reference Management 
- */
-
 /* Version Management */
-// cudaError_t cudaDriverGetVersion(int* driverVersion);
-// cudaError_t cudaRuntimeGetVersion(int* runtimeVersion);
+cudaError_t cudaDriverGetVersion(int* driverVersion);
+cudaError_t cudaRuntimeGetVersion(int* runtimeVersion);
 
 /* Memory Fence */
 __device__ void __threadfence_block(void);
@@ -177,6 +170,8 @@ __host__ __device__ void free(void* ptr);
 
 /* Device printf. */
 __host__ __device__ int printf(const char* restrict format, ...);
+
+__host__ __device__ void abort(void);
 #endif
 
 #endif

@@ -8,6 +8,18 @@ typedef unsigned long ulong;
 typedef long long longlong;
 typedef unsigned long long ulonglong;
 
+enum cudaMemoryType {
+      cudaMemoryTypeHost   = 1,
+      cudaMemoryTypeDevice = 2,
+};
+
+struct cudaPointerAttributes {
+      enum cudaMemoryType memoryType;
+      int device;
+      void* devicePointer;
+      void* hostPointer;
+};
+
 enum cudaMemcpyKind {
       cudaMemcpyHostToDevice = 1,
       cudaMemcpyDeviceToHost = 2,
@@ -88,6 +100,29 @@ extern dim3 blockIdx;
 extern dim3 gridDim;
 extern dim3 blockDim;
 extern int warpSize;
+
+struct cudaPitchedPtr {
+      void* ptr;
+      size_t pitch;
+      size_t xsize;
+      size_t ysize;
+};
+
+struct cudaExtent {
+      size_t width;
+      size_t height;
+      size_t depth;
+};
+
+struct cudaPos {
+      size_t x;
+      size_t y;
+      size_t z;
+};
+
+__device__ __host__ struct cudaExtent make_cudaExtent(size_t w, size_t h, size_t d);
+__device__ __host__ struct cudaPitchedPtr make_cudaPitchedPtr(void* d, size_t p, size_t xsz, size_t ysz);
+__device__ __host__ struct cudaPos make_cudaPos(size_t x, size_t y, size_t z);
 
 /* Built-in Vector Types */
 

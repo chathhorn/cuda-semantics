@@ -9,6 +9,7 @@ module CUDA-MEMORY is
       including CUDA-DEVICES-HEADER
       including CUDA-DATATYPES-HEADER
       including CUDA-ERRORS-HEADER
+      including CUDA-PROPERTIES-HEADER
 
       syntax K ::= "cuda-set-mdevice" "(" Nat ")"
                  | "cuda-set-mhost" "(" Nat ")"
@@ -74,7 +75,6 @@ module CUDA-MEMORY is
 
       rule [cuda-set-mshared]:
             <k> cuda-set-mshared(loc(Base:Nat, _, _)) => . ...</k>
-            <cudaSharedObjects> ... (. => ListItem(loc(Base:Nat, 0, 0))) </cudaSharedObjects>
             <object>...
                   <basePtr> Base:Nat </basePtr>
                   <properties>... (. => cuda-mshared) ...</properties>
@@ -411,4 +411,55 @@ module CUDA-MEMORY is
             <k> prepareBuiltin((Identifier("__threadfence_system")), _)
                   => skipval
             ...</k>
+
+
+      /*@ Unified addressing. */
+
+      // TODO: needs work.
+
+      rule [cudaPointerGetAttributes-both]:
+            <k> prepareBuiltin((Identifier("cudaPointerGetAttributes")), (PtrAttrs:KResult,, tv(loc(Base:Nat, Offset:Nat, _), T:KResult)))
+                  => Computation(PtrAttrs -> Identifier("memoryType") := tv(cuda-memory-type-device, t(.Set, int)) )
+                  ~> Computation(PtrAttrs -> Identifier("device") := tv(0, t(.Set, int)) )
+                  ~> Computation(PtrAttrs -> Identifier("devicePointer") := tv(loc(Base, Offset, 0), T) )
+                  ~> Computation(PtrAttrs -> Identifier("hostPointer") := tv(loc(Base, Offset, 0), T) )
+                  ~> cuda-return-success
+            ...</k>
+            <object>...
+                  <basePtr> Base:Nat </basePtr>
+                  <properties> Attrs:Bag </properties>
+            ...</object>
+            when (cuda-mdevice in Attrs) andBool (cuda-mhost in Attrs)
+      rule [cudaPointerGetAttributes-host]:
+            <k> prepareBuiltin((Identifier("cudaPointerGetAttributes")), (PtrAttrs:KResult,, tv(loc(Base:Nat, Offset:Nat, _), T:KResult)))
+                  => Computation(PtrAttrs -> Identifier("memoryType") := tv(cuda-memory-type-host, t(.Set, int)) )
+                  ~> Computation(PtrAttrs -> Identifier("device") := tv(0, t(.Set, int)) )
+                  ~> Computation(PtrAttrs -> Identifier("devicePointer") := tv(NullPointer, T) )
+                  ~> Computation(PtrAttrs -> Identifier("hostPointer") := tv(loc(Base, Offset, 0), T) )
+                  ~> cuda-return-success
+            ...</k>
+            <object>...
+                  <basePtr> Base:Nat </basePtr>
+                  <properties> Attrs:Bag </properties>
+            ...</object>
+            when notBool (cuda-mdevice in Attrs) andBool (cuda-mhost in Attrs)
+      rule [cudaPointerGetAttributes-device]:
+            <k> prepareBuiltin((Identifier("cudaPointerGetAttributes")), (PtrAttrs:KResult,, tv(loc(Base:Nat, Offset:Nat, _), T:KResult)))
+                  => Computation(PtrAttrs -> Identifier("memoryType") := tv(cuda-memory-type-device, t(.Set, int)) )
+                  ~> Computation(PtrAttrs -> Identifier("device") := tv(0, t(.Set, int)) )
+                  ~> Computation(PtrAttrs -> Identifier("devicePointer") := tv(loc(Base, Offset, 0), T) )
+                  ~> Computation(PtrAttrs -> Identifier("hostPointer") := tv(NullPointer, T) )
+                  ~> cuda-return-success
+            ...</k>
+            <object>...
+                  <basePtr> Base:Nat </basePtr>
+                  <properties> Attrs:Bag </properties>
+            ...</object>
+            when notBool (cuda-mdevice in Attrs) andBool notBool (cuda-mhost in Attrs)
+      rule [cudaPointerGetAttributes-invalid]:
+            <k> prepareBuiltin((Identifier("cudaPointerGetAttributes")), (tv(PtrAttrs:Nat, _),, tv(Ptr:Nat, _)))
+                  => cuda-return(cuda-error-invalid-value)
+            ...</k>
+            when PtrAttrs ==K NullPointer orBool Ptr ==K NullPointer
+
 end module

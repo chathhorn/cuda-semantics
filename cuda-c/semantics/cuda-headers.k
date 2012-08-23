@@ -24,9 +24,10 @@ module CUDA-MEMORY-HEADER is
       syntax K ::= "cuda-alloc-shared" "(" Id "," Nat ")"
       syntax K ::= "cuda-free-shared"
 
-      syntax BagItem ::= "cuda-mdevice"
-                       | "cuda-mshared"
-                       | "cuda-mhost"
+      syntax BagItem ::= "cuda-mdevice" // Visible to the device (host or device memory).
+                       | "cuda-mshared" // Shared device memory.
+                       | "cuda-mhost"   // Visible to the host.
+                       | "cuda-mmapped" // Host memory mapped into the device address space.
 
       syntax SetItem ::= "cuda-access-device-read"
                        | "cuda-access-device-write"
@@ -55,6 +56,10 @@ module CUDA-DEVICES-HEADER is
 end module
 
 module CUDA-RACECHECK-HEADER is
+      ops   cuda-rc-read-m
+            cuda-rc-write-m
+            : Nat -> K
+            
       syntax K ::= "cuda-rc-read" "(" Nat ")"
                  | "cuda-rc-write" "(" Nat ")"
       syntax K ::= "cuda-rc-sync-shared"
@@ -63,20 +68,31 @@ module CUDA-RACECHECK-HEADER is
       syntax K ::= "cuda-rc-on-delete" "(" Nat "," Bag "," Map ")"
 end module
 
-module CUDA-DEVICE-PROPERTIES-HEADER is
+module CUDA-PROPERTIES-HEADER is
       syntax K ::= "gehhhhhh"
 
-      ops   declare cuda-func-cache-prefer-none
-            declare cuda-func-cache-prefer-shared
-            declare cuda-func-cache-prefer-l1
+      ops   cuda-func-cache-prefer-none
+            cuda-func-cache-prefer-shared
+            cuda-func-cache-prefer-l1
             : -> Nat
 
-      ops   declare cuda-limit-stack-size
-            declare cuda-limit-print-fifo-size
-            declare cuda-limit-malloc-heap-size
+      ops   cuda-limit-stack-size
+            cuda-limit-printf-fifo-size
+            cuda-limit-malloc-heap-size
             : -> Nat
 
-      ops cuda-cfg-deviceName                           : -> String
+      ops   cuda-memory-type-host
+            cuda-memory-type-device
+            : -> Nat
+
+      ops   cuda-cfg-raceChecking
+            : -> Bool
+
+      ops   cuda-cfg-driverVersion
+            cuda-cfg-runtimeVersion
+            : -> Nat
+
+      ops cuda-cfg-deviceName : -> String
 
       ops   cuda-cfg-cacheConfig
             cuda-cfg-deviceCount
