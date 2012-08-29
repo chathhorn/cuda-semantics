@@ -5,6 +5,7 @@ use File::Basename;
 
 sub maudeOutputWrapper {
 	my ($plainOutput, $screenOutput, @input) = (@_);
+      # $plainOutput = 1;
 	my $realOutput = "";
 	my $state = "start";
 	my $retval = -1;
@@ -24,6 +25,11 @@ sub maudeOutputWrapper {
 	my $myOffsetStart = "";
 	my $myOffsetEnd = "";
 
+      # CUDA
+      my $nks = 0;
+      my $nsyncs = 0;
+      my $nfinalcomps = 0;
+
 	# my $kCell = "";
 	# my $typeCell = "";
 	# my $ignoreThis = 0;
@@ -33,6 +39,18 @@ sub maudeOutputWrapper {
 		chomp($line);
 		#$line =~ s/[\000-\037]\[(\d|;)+m//g; # remove ansi colors
 		#print "$line\n";
+
+            # CUDA deadlock detection
+            if ($line =~ m/< finalComputation > .* <\/ finalComputation >/){
+                  ++$nfinalcomps;
+            }
+            if ($line =~ m/< k > .* <\/ k >/){
+                  ++$nks;
+            }
+            if ($line =~ m/< k > \('cuda-sync.* <\/ k >/){
+                  ++$nsyncs;
+            }
+
 		if ($state eq "start"){
 			if ($line =~ m/rewrites: /){
 				$state = "rewrite";
@@ -112,6 +130,14 @@ sub maudeOutputWrapper {
 			$realOutput .= "$line\n";
 		}
 	}
+
+      # CUDA 
+      if ($nfinalcomps == 0 && $nks == ($nsyncs + 1) && $nsyncs > 0) {
+            $realOutput .= "\n=============================================================\n";
+            $realOutput .= "CUDA: it's likely we've encountered a deadlock caused by a\n"
+                         . "misplaced __syncthreads(). See below for more details.";
+      }
+
 	if ($plainOutput) {
 		$realOutput .= "$buffer\n";
 	} elsif ($reduced == 0 || $haveResult == 0) {
@@ -154,6 +180,8 @@ sub maudeOutputWrapper {
 		$realOutput .= "\nFull report can be found in $filename\n";
 		close $fh;
 	}
+
+
 	return ($retval, $realOutput);
 }
 1;

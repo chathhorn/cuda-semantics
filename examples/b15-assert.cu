@@ -1,6 +1,7 @@
 // From Appendix B.15 of the CUDA-C Programming Guide.
 
 #include <assert.h>
+#include <cuda.h>
 
 // assert() is only supported
 // for devices of compute capability 2.0 and higher
@@ -9,8 +10,7 @@
 #define assert(arg)
 #endif
 
-__global__ void testAssert(void)
-{
+__global__ void testAssert(void) {
       int is_one = 1;
       int should_be_one = 0;
       // This will have no effect
@@ -18,8 +18,8 @@ __global__ void testAssert(void)
       // This will halt kernel execution
       assert(should_be_one);
 }
-int main(int argc, char* argv[])
-{
+
+int main(int argc, char* argv[]) {
       testAssert<<<1,1>>>();
       cudaDeviceSynchronize();
       cudaDeviceReset();

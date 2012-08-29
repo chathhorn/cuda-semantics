@@ -25,7 +25,7 @@ __global__ void sum_kernel(int* g_idata, int* g_odata) {
             shared[tid] += shared[NTHREADS_PER_BLOCK/2 + tid];
       }
 
-      __syncthreads();
+      //__syncthreads();
 
       if (tid == 0) {
             for (i = 1; i != NTHREADS_PER_BLOCK/2; ++i) {
@@ -51,22 +51,16 @@ int main(int argc, char** argv) {
       }
       printf("\n");
 
-      printf("Mallocing scratch.\n");
       cudaMalloc(&d_scratch, NBLOCKS * NRUNS * sizeof(int));
-      printf("Mallocing idata.\n");
       cudaMalloc(&d_idata, NELEMENTS * sizeof(int));
-      printf("Mallocing odata.\n");
       cudaMalloc(&d_odata, NRUNS * sizeof(int));
 
-      printf("Memcpy idata.\n");
       cudaMemcpy(d_idata, h_data, NELEMENTS * sizeof(int), cudaMemcpyHostToDevice);
 
-      printf("Memset odata.\n");
       cudaMemset(d_odata, 0, NRUNS * sizeof(int));
       // Initializing scratch so as to test racechecking (otherwise we might
       // get errors about accessing uninitialized memory).
-      printf("Memset scratch.\n");
-      cudaMemset(d_scratch, 0, NBLOCKS * NRUNS * sizeof(int));
+      //cudaMemset(d_scratch, 0, NBLOCKS * NRUNS * sizeof(int));
       
       printf("Launching %d blocks of %d threads each " 
              "to asychronously sum the list above %d times.\n", 

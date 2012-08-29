@@ -1,14 +1,16 @@
 #include <cuda.h>
+#include <stdio.h>
 
-__device__ int bss_device;
-int bss_host;
+__device__ int device;
+int host;
 
 __global__ void pass() {
-      printf("Zero: %i\n", bss_device);
+      printf("Zero: %i\n", device);
 }
 
 __global__ void fail() {
-      printf("Zero: %i\n", bss_host);
+      // This should halt with an access error.
+      printf("Zero: %i\n", host);
 }
 
 int main(int argc, char** argv) {

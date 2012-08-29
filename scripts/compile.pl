@@ -90,7 +90,10 @@ my $spec = q(#
   -pedantic			Ignored
   -Wall				Ignored
 		
-There are additional options available at runtime.  Try running your compiled program with HELP set (e.g., HELP=1 ./a.out) to see these
+There are additional options available at runtime.  Try running your compiled
+program with HELP set (e.g., HELP=1 ./a.out) to see these.
+
+This version of kcc been extended with support for some CUDA-C features.
 );
 
  #[mutex: -case -CASE -Case -CaSe]

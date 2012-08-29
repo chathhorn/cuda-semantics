@@ -5,6 +5,7 @@
 #include <cuda.h>
 
 #define NUM_BLOCKS 2
+#define NUM_THREADS 5
 
 __device__ int* dataptr[NUM_BLOCKS]; // Per-block pointer
 
@@ -42,13 +43,13 @@ __global__ void freemem() {
 int main() {
       cudaDeviceSetLimit(cudaLimitMallocHeapSize, 128*1024*1024);
       // Allocate memory
-      allocmem<<< NUM_BLOCKS, 10 >>>();
+      allocmem<<< NUM_BLOCKS, NUM_THREADS >>>();
       // Use memory
-      usemem<<< NUM_BLOCKS, 10 >>>();
-      usemem<<< NUM_BLOCKS, 10 >>>();
-      usemem<<< NUM_BLOCKS, 10 >>>();
+      usemem<<< NUM_BLOCKS, NUM_THREADS >>>();
+      usemem<<< NUM_BLOCKS, NUM_THREADS >>>();
+      usemem<<< NUM_BLOCKS, NUM_THREADS >>>();
       // Free memory
-      freemem<<< NUM_BLOCKS, 10 >>>();
+      freemem<<< NUM_BLOCKS, NUM_THREADS >>>();
       cudaDeviceSynchronize();
       return 0;
 }

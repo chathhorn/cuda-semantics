@@ -20,6 +20,8 @@ module COMMON-C-CONFIGURATION is
                         <streamContents> .K </streamContents>
                   </stream>
 
+                  <cudaDetectedRaces> .Set </cudaDetectedRaces>
+
                   <cudaHostFunctions> .Set </cudaHostFunctions>
                   <cudaDeviceFunctions> .Set </cudaDeviceFunctions>
                   <cudaGlobalFunctions> .Set </cudaGlobalFunctions>

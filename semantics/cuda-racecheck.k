@@ -24,17 +24,15 @@ module CUDA-RACECHECK is
 
       //                                  SId     GId     BId     TId
       syntax KResult ::= "cuda-rc-id" "(" Nat "," Nat "," Nat "," Nat ")"
-      //                                   FR    FW     RC       WC       race
-                       | "cuda-rc-info" "(" K "," K "," Bool "," Bool "," Bool ")"
+      //                                   FR    FW     RC       WC    
+                       | "cuda-rc-info" "(" K "," K "," Bool "," Bool ")"
 
       syntax K ::= "cuda-rc-new-info" "(" Nat ")"
                  | "cuda-race" "(" Nat ")"
       syntax K ::= "cuda-racecheck" "(" Nat "," KResult ")" [strict(2)]
       syntax K ::= "cuda-rc-update-info" "(" KResult ")" [strict]
 
-
-      // TODO: should probably do some racechecking on delete. It should count
-      // as a write to every offset in the deleted structure.
+      // TODO: should probably do some racechecking on delete.
       rule [cuda-rc-on-delete-shared]:
             <k> cuda-rc-on-delete(Loc:Nat, Attrs:Bag, RC:Map)
                   => .
@@ -113,13 +111,13 @@ module CUDA-RACECHECK is
                   ...</cudaRacecheck>
             ...</object>
       rule [cuda-rc-put-info-W]:
-            <k> cuda-rc-put-info-W(loc(Base:Nat, Offset:Nat, 0), cuda-rc-info(FW:K, FR:K, WC:Bool, RC:Bool, Race:Bool))
+            <k> cuda-rc-put-info-W(loc(Base:Nat, Offset:Nat, 0), cuda-rc-info(FW:K, FR:K, WC:Bool, RC:Bool))
                   => .
             ...</k>
             <object>...
                   <basePtr> Base:Nat </basePtr>
                   <cudaRacecheck>... 
-                        Offset |-> (_ => cuda-rc-info(FR:K, FW:K, RC:Bool, WC:Bool, Race:Bool))
+                        Offset |-> (_ => cuda-rc-info(FR:K, FW:K, RC:Bool, WC:Bool))
                   ...</cudaRacecheck>
             ...</object>
 
@@ -135,33 +133,33 @@ module CUDA-RACECHECK is
             ...</object>
       rule [cuda-rc-get-info-W]:
             <k> cuda-rc-get-info-W(loc(Base:Nat, Offset:Nat, 0))
-                  => cuda-rc-info(FW:K, FR:K, WC:Bool, RC:Bool, Race:Bool)
+                  => cuda-rc-info(FW:K, FR:K, WC:Bool, RC:Bool)
             ...</k>
             <object>...
                   <basePtr> Base:Nat </basePtr>
                   <cudaRacecheck>... 
-                        Offset |-> cuda-rc-info(FR:K, FW:K, RC:Bool, WC:Bool, Race:Bool)
+                        Offset |-> cuda-rc-info(FR:K, FW:K, RC:Bool, WC:Bool)
                   ...</cudaRacecheck>
             ...</object>
 
-      rule <k> cuda-rc-update-info(cuda-rc-info(.K, FX:K, Closed:Bool, CX:Bool, Race:Bool))
-                  => cuda-rc-info(ID, FX:K, Closed:Bool, CX:Bool, Race:Bool)
+      rule <k> cuda-rc-update-info(cuda-rc-info(.K, FX:K, Closed:Bool, CX:Bool))
+                  => cuda-rc-info(ID, FX:K, Closed:Bool, CX:Bool)
             ...</k>
             <sid> SId:Nat </sid>
             <gid> GId:Nat </gid>
             <bid> BId:Nat </bid>
             <tid> TId:Nat </tid>
             where ID = cuda-rc-id(SId, GId, BId, TId)
-      rule <k> cuda-rc-update-info(cuda-rc-info(ID, FX:K, Closed:Bool, CX:Bool, Race:Bool))
-                  => cuda-rc-info(ID, FX:K, Closed:Bool, CX:Bool, Race:Bool)
+      rule <k> cuda-rc-update-info(cuda-rc-info(ID, FX:K, Closed:Bool, CX:Bool))
+                  => cuda-rc-info(ID, FX:K, Closed:Bool, CX:Bool)
             ...</k>
             <sid> SId:Nat </sid>
             <gid> GId:Nat </gid>
             <bid> BId:Nat </bid>
             <tid> TId:Nat </tid>
             where ID = cuda-rc-id(SId, GId, BId, TId)
-      rule <k> cuda-rc-update-info(cuda-rc-info(You:K, FX:K, Closed:Bool, CX:Bool, Race:Bool))
-                  => cuda-rc-info(You:K, FX:K, true, CX:Bool, Race:Bool)
+      rule <k> cuda-rc-update-info(cuda-rc-info(You:K, FX:K, Closed:Bool, CX:Bool))
+                  => cuda-rc-info(You:K, FX:K, true, CX:Bool)
             ...</k>
             <sid> SId:Nat </sid>
             <gid> GId:Nat </gid>
@@ -176,7 +174,7 @@ module CUDA-RACECHECK is
       // (cuda-rc-update-info).
 
       rule [cuda-racecheck-skip]:
-            <k> cuda-racecheck(_, cuda-rc-info(FR:K, FW:K, false, _, _))
+            <k> cuda-racecheck(_, cuda-rc-info(FR:K, FW:K, false, _))
                   => .
             ...</k>
             <sid> SId:Nat </sid>
@@ -186,7 +184,7 @@ module CUDA-RACECHECK is
             when (ID ==K FW orBool FW ==K .K)
             where ID = cuda-rc-id(SId, GId, BId, TId)
       rule [cuda-racecheck-race]: 
-            <k> cuda-racecheck(Loc:K, cuda-rc-info(FR:K, FW:K, false, _, _))
+            <k> cuda-racecheck(Loc:K, cuda-rc-info(FR:K, FW:K, false, _))
                   => cuda-race(Loc)
             ...</k>
             <sid> SId:Nat </sid>
@@ -196,10 +194,15 @@ module CUDA-RACECHECK is
             when (ID =/=K FW andBool FW =/=K .K)
             where ID = cuda-rc-id(SId, GId, BId, TId)
       rule [cuda-racecheck-closed]: 
-            <k> cuda-racecheck(Loc:K, cuda-rc-info(_, _, true, _, _))
+            <k> cuda-racecheck(Loc:K, cuda-rc-info(_, _, true, _))
                   => cuda-race(Loc)
             ...</k>
 
+      rule [cuda-rc-read-skip-loc-unknown]:
+            <k> cuda-rc-read(loc(Base:Nat, Offset:Nat, _))
+                  => .
+            ...</k>
+            <currentProgramLoc> UnknownCabsLoc </currentProgramLoc>
       rule [cuda-rc-read-skip]:
             <k> cuda-rc-read(loc(Base:Nat, Offset:Nat, _))
                   => .
@@ -208,8 +211,12 @@ module CUDA-RACECHECK is
                   <basePtr> Base:Nat </basePtr>
                   <properties> Attr:Bag </properties>
             ...</object>
-            when notBool (cuda-mshared in Attr:Bag)
-            andBool notBool (cuda-mdevice in Attr:Bag)
+            <currentProgramLoc> 
+                  CabsLoc(FileName:String, Line:Int, _, _)
+            </currentProgramLoc>
+            <cudaDetectedRaces> Races:Set </cudaDetectedRaces>
+            when (notBool (cuda-mshared in Attr:Bag) andBool notBool (cuda-mdevice in Attr:Bag))
+            orBool (SetItem(FileName +String toString(Line)) in Races:Set)
       rule [cuda-rc-read-shared]:
             <k> cuda-rc-read(LOC)
                   => cuda-rc-new-info(LOC)
@@ -220,7 +227,12 @@ module CUDA-RACECHECK is
                   <basePtr> Base:Nat </basePtr>
                   <properties> Attr:Bag </properties>
             ...</object>
+            <currentProgramLoc> 
+                  CabsLoc(FileName:String, Line:Int, _, _)
+            </currentProgramLoc>
+            <cudaDetectedRaces> Races:Set </cudaDetectedRaces>
             when (cuda-mshared in Attr:Bag)
+            andBool notBool (SetItem(FileName +String toString(Line)) in Races:Set)
             where LOC = loc(Base:Nat, Offset:Nat, 0)
       // Skipping global for now.
       rule [cuda-rc-read-global]:
@@ -231,10 +243,20 @@ module CUDA-RACECHECK is
                   <basePtr> Base:Nat </basePtr>
                   <properties> Attr:Bag </properties>
             ...</object>
+            <currentProgramLoc> 
+                  CabsLoc(FileName:String, Line:Int, _, _)
+            </currentProgramLoc>
+            <cudaDetectedRaces> Races:Set </cudaDetectedRaces>
             when notBool (cuda-mshared in Attr:Bag)
+            andBool notBool (SetItem(FileName +String toString(Line)) in Races:Set)
             //andBool (cuda-mdevice in Attr:Bag)
             where LOC = loc(Base:Nat, Offset:Nat, 0)
 
+      rule [cuda-rc-write-skip-loc-unknown]:
+            <k> cuda-rc-write(loc(Base:Nat, Offset:Nat, _))
+                  => .
+            ...</k>
+            <currentProgramLoc> UnknownCabsLoc </currentProgramLoc>
       rule [cuda-rc-write-skip]:
             <k> cuda-rc-write(loc(Base:Nat, Offset:Nat, 0))
                   => .
@@ -243,8 +265,12 @@ module CUDA-RACECHECK is
                   <basePtr> Base:Nat </basePtr>
                   <properties> Attr:Bag </properties>
             ...</object>
-            when notBool (cuda-mshared in Attr:Bag)
-            andBool notBool (cuda-mdevice in Attr:Bag)
+            <currentProgramLoc> 
+                  CabsLoc(FileName:String, Line:Int, _, _)
+            </currentProgramLoc>
+            <cudaDetectedRaces> Races:Set </cudaDetectedRaces>
+            when (notBool (cuda-mshared in Attr:Bag) andBool notBool (cuda-mdevice in Attr:Bag))
+            orBool (SetItem(FileName +String toString(Line)) in Races:Set)
       rule [cuda-rc-write-shared]:
             <k> cuda-rc-write(LOC)
                   => cuda-rc-new-info(LOC)
@@ -255,7 +281,12 @@ module CUDA-RACECHECK is
                   <basePtr> Base:Nat </basePtr>
                   <properties> Attr:Bag </properties>
             ...</object>
+            <currentProgramLoc> 
+                  CabsLoc(FileName:String, Line:Int, _, _)
+            </currentProgramLoc>
+            <cudaDetectedRaces> Races:Set </cudaDetectedRaces>
             when (cuda-mshared in Attr:Bag)
+            andBool notBool (SetItem(FileName +String toString(Line)) in Races:Set)
             where LOC = loc(Base:Nat, Offset:Nat, 0)
       // Skipping global for now.
       rule [cuda-rc-write-global]:
@@ -266,7 +297,12 @@ module CUDA-RACECHECK is
                   <basePtr> Base:Nat </basePtr>
                   <properties> Attr:Bag </properties>
             ...</object>
+            <currentProgramLoc> 
+                  CabsLoc(FileName:String, Line:Int, _, _)
+            </currentProgramLoc>
+            <cudaDetectedRaces> Races:Set </cudaDetectedRaces>
             when notBool (cuda-mshared in Attr:Bag)
+            andBool notBool (SetItem(FileName +String toString(Line)) in Races:Set)
             //andBool (cuda-mdevice in Attr:Bag)
             where LOC = loc(Base:Nat, Offset:Nat, 0)
 
@@ -284,53 +320,46 @@ module CUDA-RACECHECK is
             ...</k>
             <object>...
                   <basePtr> Base:Nat </basePtr>
-                  <cudaRacecheck> Info:Map (. => Offset |-> cuda-rc-info(.K, .K, false, false, false)) </cudaRacecheck>
+                  <cudaRacecheck> Info:Map (. => Offset |-> cuda-rc-info(.K, .K, false, false)) </cudaRacecheck>
             ...</object>
             when notBool (Offset:Nat in keys Info:Map)
 
-      // Skip printing if this location has already been raced.
+      rule [cuda-race-skip-loc-unknown]:
+            <k> cuda-race(_) => . ...</k>
+            <currentProgramLoc> 
+                  UnknownCabsLoc
+            </currentProgramLoc>
       rule [cuda-race-skip]:
-            <k> cuda-race(LOC)
-                  => .
-            ...</k>
-            <object>...
-                  <basePtr> Base:Nat </basePtr>
-                  <cudaRacecheck>... 
-                        Offset |-> cuda-rc-info(_, _, _, _, true) 
-                  ...</cudaRacecheck>
-            ...</object>
-            where LOC = loc(Base:Nat, Offset:Nat, 0)
+            <k> cuda-race(_) => . ...</k>
+            <currentProgramLoc> 
+                  CabsLoc(FileName:String, Line:Int, _, _) 
+            </currentProgramLoc>
+            <cudaDetectedRaces> Races:Set </cudaDetectedRaces>
+            when (SetItem(FileName:String +String toString(Line:Int)) in Races:Set)
       rule [cuda-race]:
             <k> cuda-race(LOC)
                   => writeToFD(1, 
-                        "CUDA: Race at " +String pointerToString(LOC)
-                        +String
-                        #if (cuda-mshared in Attr:Bag) 
-                        #then " (shared)"
-                        #else " (global)"
-                        #fi
-                        +String " detected in thread"
-                        +String " [" 
-                        +String toString(SId:Nat) +String ", "
-                        +String toString(GId:Nat) +String ", "
-                        +String toString(BId:Nat) +String ", "
-                        +String toString(TId:Nat)
-                        +String "]" 
-                        //+String " (" +String F:String +String ")"
-                        +String ".\n")
+                      "CUDA: Race on shared device memory detected at "
+                      +String FileName:String
+                      +String ":" +String toString(Line:Int)
+                      //+String ":" +String toString(OffsetStart:Int)
+                      //+String "-" +String toString(OffsetEnd:Int)
+                      +String ".\n")
                   ~> flush(1)
             ...</k>
-            <sid> SId:Nat </sid>
-            <gid> GId:Nat </gid>
-            <bid> BId:Nat </bid>
-            <tid> TId:Nat </tid>
             <object>...
                   <basePtr> Base:Nat </basePtr>
-                  <properties> Attr:Bag </properties>
                   <cudaRacecheck>... 
-                        Offset |-> cuda-rc-info(_, _, _, _, (false => true)) 
+                        Offset |-> cuda-rc-info(_, _, _, _) 
                   ...</cudaRacecheck>
             ...</object>
+            <currentProgramLoc> 
+                  CabsLoc(FileName:String, Line:Int, OffsetStart:Int, OffsetEnd:Int) 
+            </currentProgramLoc>
+            <cudaDetectedRaces> 
+                  Races:Set (. => SetItem(FileName:String +String toString(Line:Int)))
+            </cudaDetectedRaces>
+            when notBool (SetItem(FileName +String toString(Line)) in Races)
             where LOC = loc(Base:Nat, Offset:Nat, 0)
 
 end module
