@@ -288,7 +288,8 @@ module COMMON-SEMANTICS-DECLARATIONS-GENERAL is
 		
 	rule
 		<k> declareInternalVariable(X:Id, T:KResult, K:K)
-			=> defineAndInit(X:Id, unqualifyType(T:KResult), figureInit(X:Id, removeStorageSpecifiers(T:KResult), K:K), Loc:Nat)
+            // CUDA: removing unqualifyType from second arg
+			=> defineAndInit(X:Id, T:KResult, figureInit(X:Id, removeStorageSpecifiers(T:KResult), K:K), Loc:Nat)
 		...</k>
 		<internalLocations>... 
 			Tu:K |-> Map((Locs:Map => Locs:Map[Loc:Nat / kpair(X:Id, BlockNum:Nat)])) 
@@ -499,7 +500,8 @@ module COMMON-SEMANTICS-DECLARATIONS-GENERAL is
 		<declarations>... .Set => SetItem(X:Id) ...</declarations>
 		//<br/>
 		<externalDefinitions> 
-			Def:Map => Def:Map (X:Id |-> declarationObject(unqualifyType(T:KResult), Tu:K, K:K)) 
+                  // CUDA: removing unualifyType...
+			Def:Map => Def:Map (X:Id |-> declarationObject(T:KResult, Tu:K, K:K)) 
 		</externalDefinitions>
 		<br/>
 		<preLinkage>... Tu:K |-> Map((Linkage:Map => Linkage:Map[external / X:Id])) ...</preLinkage>
@@ -517,7 +519,8 @@ module COMMON-SEMANTICS-DECLARATIONS-GENERAL is
 		<declarations>... .Set => SetItem(X:Id) ...</declarations>
 		//<br/>
 		// <externalDefinitions> Def:Map => Def:Map (X:Id |-> declarationObject(unqualifyType(T:KResult), Tu:K, K:K)) </externalDefinitions>
-		<internalDefinitions>... Tu:K |-> Map((Def:Map => Def:Map[declarationObject(unqualifyType(T:KResult), Tu:K, K:K) / X:Id])) ...</internalDefinitions>
+                  // CUDA: removing unualifyType...
+		<internalDefinitions>... Tu:K |-> Map((Def:Map => Def:Map[declarationObject(T:KResult, Tu:K, K:K) / X:Id])) ...</internalDefinitions>
 		<br/>
 		<preLinkage>... Tu:K |-> Map(Linkage:Map) ...</preLinkage>
 		<preTypes>... Tu:K |-> Map((Types:Map => Types:Map[T:KResult / X:Id])) ...</preTypes>
@@ -532,7 +535,8 @@ module COMMON-SEMANTICS-DECLARATIONS-GENERAL is
 		...</k>
 		<declarations>... .Set => SetItem(X:Id) ...</declarations>
 		//<br/>
-		<internalDefinitions>... Tu:K |-> Map((Def:Map => Def:Map[declarationObject(unqualifyType(T:KResult), Tu:K, K:K) / X:Id])) ...</internalDefinitions>
+                  // CUDA: removing unualifyType...
+		<internalDefinitions>... Tu:K |-> Map((Def:Map => Def:Map[declarationObject(T:KResult, Tu:K, K:K) / X:Id])) ...</internalDefinitions>
 		<br/>
 		<preLinkage>... Tu:K |-> Map((Linkage:Map => Linkage:Map[internal / X:Id])) ...</preLinkage>
 		<preTypes>... Tu:K |-> Map((Types:Map => Types:Map[T:KResult / X:Id])) ...</preTypes>
@@ -566,8 +570,9 @@ module COMMON-SEMANTICS-DECLARATIONS-GENERAL is
 		[structural]
 		
 	rule
-		<k> defineAndInit(X:Id, _, initValue(X:Id, T:KResult, K:K), Loc:Nat)
-			=> allocateTypeIfAbsent(Loc:Nat, T:KResult)
+            // CUDA: TX
+		<k> defineAndInit(X:Id, TX:KResult, initValue(X:Id, T:KResult, K:K), Loc:Nat)
+			=> allocateTypeIfAbsent(Loc:Nat, TX:KResult)
 			~> addToEnv(X:Id, Loc:Nat)
 			~> giveType(X:Id, T:KResult)
 			~> initialize(X:Id, T:KResult, K:K)
@@ -576,8 +581,9 @@ module COMMON-SEMANTICS-DECLARATIONS-GENERAL is
 		[structural] 
 		
 	rule
-		<k> defineAndInit(X:Id, _, initValue(X:Id, T:KResult, _), Loc:Nat)
-			=> allocateTypeIfAbsent(Loc:Nat, T:KResult)
+            // CUDA: TX
+		<k> defineAndInit(X:Id, TX:KResult, initValue(X:Id, T:KResult, _), Loc:Nat)
+			=> allocateTypeIfAbsent(Loc:Nat, TX:KResult)
 			~> addToEnv(X:Id, Loc:Nat)
 			~> giveType(X:Id, T:KResult)
 		...</k>
@@ -1268,7 +1274,8 @@ module COMMON-SEMANTICS-DECLARATIONS-RESOLUTION is
 		
 	// static variable without an initializer
 	rule
-		<k> (.K => resolveInternal(X:Id, Tu:K, declarationObject(unqualifyType(T:KResult), Tu:K, initializer(zero(X:Id))))) ~> resolve(Tu:K) ...</k>
+            // CUDA: remvoing unqualifyType
+		<k> (.K => resolveInternal(X:Id, Tu:K, declarationObject(T:KResult, Tu:K, initializer(zero(X:Id))))) ~> resolve(Tu:K) ...</k>
 		<br/>
 		<preLinkage>... Tu:K |-> Map((_ (X:Id |-> internal => .Map))) ...</preLinkage>
 		<internalDefinitions>... Tu:K |-> Map(Defs:Map) ...</internalDefinitions>

@@ -133,6 +133,7 @@ module CUDA-THREADS is
             <nextThreadId> ThreadId:Nat => ThreadId +Int 1</nextThreadId>
             <threadStatus> Status:Map => Status[threadRunning / ThreadId] </threadStatus>
             <thread>
+                  <sid> 0 </sid>
                   <gid> 0 </gid>
                   <bid> 0 </bid>
                   <tid> 0 </tid>

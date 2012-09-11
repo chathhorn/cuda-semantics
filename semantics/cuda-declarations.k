@@ -32,7 +32,6 @@ module CUDA-DECLARATIONS is
 		when notBool isStaticType(T:KResult)
 		andBool isExternType(T:KResult)
             andBool isCudaSharedType(T:KResult)
-            // __shared__ and extern on anything but a pointer must be illegal.
             andBool isIncompleteType(T:KResult)
 		[structural] 
 

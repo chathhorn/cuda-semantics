@@ -3,32 +3,31 @@
 #include <stdlib.h>
 #include <cuda.h>
 
-#define NELEMENTS 4
-// NRUNS should be < NELEMENTS.
+#define N 8
+// NRUNS should be < N.
 #define NRUNS 2
 #define NBLOCKS 2
-// NTHREADS_PER_BLOCK*NBLOCKS should equal NELEMENTS
-#define NTHREADS_PER_BLOCK 2
-// Also, NBLOCKS should equal NTHREADS_PER_BLOCK.
+// NTHREADS*NBLOCKS should equal N
+#define NTHREADS (N/NBLOCKS)
+// Also, NBLOCKS should equal NTHREADS.
 
 // Sums an array.
-__global__ void sum_kernel(int* g_idata, int* g_odata) {
+__global__ void sum(int* g_idata, int* g_odata) {
       extern __shared__ int shared[];
-      int i, gtid = blockIdx.x * blockDim.x + threadIdx.x;
-      int tid = threadIdx.x;
+      int i, tid = threadIdx.x;
 
-      shared[tid] = g_idata[gtid];
+      shared[tid] = g_idata[blockIdx.x * blockDim.x + tid];
       
       __syncthreads();
 
-      if (tid < NTHREADS_PER_BLOCK/2) {
-            shared[tid] += shared[NTHREADS_PER_BLOCK/2 + tid];
+      if (tid < blockDim.x/2) {
+            shared[tid] += shared[blockDim.x/2 + tid];
       }
 
       //__syncthreads();
 
       if (tid == 0) {
-            for (i = 1; i != NTHREADS_PER_BLOCK/2; ++i) {
+            for (i = 1; i != blockDim.x/2 + !!(blockDim.x % 2); ++i) {
                   shared[0] += shared[i];
             }
 
@@ -39,23 +38,23 @@ __global__ void sum_kernel(int* g_idata, int* g_odata) {
 int main(int argc, char** argv) {
       int* d_idata, *d_odata, *d_scratch;
       int i;
-      int h_data[NELEMENTS];
+      int h_data[N];
 
       // Use a different stream for every run. 
       cudaStream_t streams[NRUNS];
 
       printf("INPUT: ");
-      for(i = 0; i != NELEMENTS; ++i) {
+      for(i = 0; i != N; ++i) {
             h_data[i] = (11 + i * i) % 7;
             printf(" %d ", h_data[i]);
       }
       printf("\n");
 
       cudaMalloc(&d_scratch, NBLOCKS * NRUNS * sizeof(int));
-      cudaMalloc(&d_idata, NELEMENTS * sizeof(int));
+      cudaMalloc(&d_idata, N * sizeof(int));
       cudaMalloc(&d_odata, NRUNS * sizeof(int));
 
-      cudaMemcpy(d_idata, h_data, NELEMENTS * sizeof(int), cudaMemcpyHostToDevice);
+      cudaMemcpy(d_idata, h_data, N * sizeof(int), cudaMemcpyHostToDevice);
 
       cudaMemset(d_odata, 0, NRUNS * sizeof(int));
       // Initializing scratch so as to test racechecking (otherwise we might
@@ -64,14 +63,14 @@ int main(int argc, char** argv) {
       
       printf("Launching %d blocks of %d threads each " 
              "to asychronously sum the list above %d times.\n", 
-             NBLOCKS, NTHREADS_PER_BLOCK, NRUNS);
+             NBLOCKS, NTHREADS, NRUNS);
 
       cudaDeviceSynchronize();
       for (i = 0; i != NRUNS; ++i) {
             cudaStreamCreate(&streams[i]);
-            sum_kernel<<< NBLOCKS, NTHREADS_PER_BLOCK, NELEMENTS/NBLOCKS * sizeof(int), streams[i] >>>
+            sum<<< NBLOCKS, NTHREADS, NTHREADS * sizeof(int), streams[i] >>>
                   (d_idata, &d_scratch[NBLOCKS * i]);
-            sum_kernel<<< 1, NTHREADS_PER_BLOCK, NBLOCKS * sizeof(int), streams[i] >>>
+            sum<<< 1, NBLOCKS, NBLOCKS * sizeof(int), streams[i] >>>
                   (&d_scratch[NBLOCKS * i], &d_odata[i]);
       }
       cudaDeviceSynchronize();
