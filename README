@@ -8,7 +8,9 @@ special kernel launch syntax ("<<< >>>") and various annotations ("__device__",
 partially supported. See semantics/includes/cuda.h for some clues about the
 current state of things.
 
-Installation and build instructions can be found in the README from Chucky's
-C semantics ("README-C").
+Installation and build instructions can be found in the README from Chucky's C
+semantics ("README-C"), although we've renamed the generated interpretter to
+"cudak" (from "kcc") and made some other minor changes to the build system to
+avoid conflict or confusion with the vanilla-C semantics.
 
 Chris Hathhorn, chathhorn@gmail.com

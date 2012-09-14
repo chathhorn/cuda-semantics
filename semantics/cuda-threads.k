@@ -22,7 +22,7 @@ module CUDA-THREADS is
                   // call, nblocks, nthreads, nshared
                   | "cuda-sync-grid"
                   //          token, grid id, block id, this id, total ids, predicate
-                  | "cuda-sync" "(" Nat "," Nat "," Nat "," Nat "," Nat "," Nat ")"
+                  | "cuda-sync" "(" Nat "," Nat "," Int "," Nat "," Nat "," Nat ")"
 
 
       syntax KResult ::= "cuda-dim3" "(" Nat "," Nat "," Nat ")"
@@ -388,7 +388,7 @@ module CUDA-THREADS is
       /*@ Pass the token up. */
 
       rule [cuda-syncthreads-passup]:
-            <k> cuda-sync(1 => 0, GId:Nat, BId:Nat, TId:Nat, NThreads:Nat, PredTotal:Nat) ...</k>
+            <k> cuda-sync(1 => 0, GId:Nat, BId:Int, TId:Nat, NThreads:Nat, PredTotal:Nat) ...</k>
             <k> cuda-sync(0 => 1, GId, BId, SuccTId:Nat, NThreads, Pred:Nat => Pred:Nat +Int PredTotal:Nat) ...</k>
             when SuccTId ==Int TId +Int 1
 
@@ -401,24 +401,21 @@ module CUDA-THREADS is
       /*@ Pass it back down. */
 
       rule [cuda-syncthreads-passdown]:
-            <k> cuda-sync(2, GId:Nat, BId:Nat, SuccTId:Nat, NThreads:Nat, PredTotal:Nat) => tv(PredTotal:Nat, t(.Set, int)) ...</k>
+            <k> cuda-sync(2, GId:Nat, BId:Int, SuccTId:Nat, NThreads:Nat, PredTotal:Nat) => tv(PredTotal:Nat, t(.Set, int)) ...</k>
             <k> cuda-sync(0 => 2, GId, BId, TId:Nat, NThreads, _ => PredTotal:Nat) ...</k>
             when SuccTId ==Int TId +Int 1
       rule <k> cuda-sync(2, _, _, 0, _, PredTotal:Nat) => tv(PredTotal:Nat, t(.Set, int)) ...</k> 
 
       /*@ \subsection{Grid-level synchronization} 
       This isn't an operation supported by CUDA, but we need it in this model to make
-      the streams synchronous. Same deal as syncing threads within a block. This
-      shouldn't ever clash with a block-level sync because if there are multiple
-      blocks in the grid (the only time a clash would be possible), then NThreads
-      will be different for the grid-level and block-level sync.*/
+      the streams synchronous. Same deal as syncing threads within a block. */
 
       rule [cuda-sync-grid-head]:
-            <k> cuda-sync-grid => Computation(cuda-sync(1, GId, 0, 0, NThreads *Int NBlocks, 1)) ...</k>
+            <k> cuda-sync-grid => Computation(cuda-sync(1, GId, -1, 0, NThreads *Int NBlocks, 1)) ...</k>
             <gid> GId:Nat </gid> <bid> 0 </bid> <tid> 0 </tid>
             <grids>... GId |-> cuda-grid(_, NBlocks:Nat, NThreads:Nat, _) ...</grids>
       rule [cuda-sync-grid]:
-            <k> cuda-sync-grid => Computation(cuda-sync(0, GId, 0, (NThreads *Int BId) +Int TId, NThreads *Int NBlocks, 1)) ...</k>
+            <k> cuda-sync-grid => Computation(cuda-sync(0, GId, -1, (NThreads *Int BId) +Int TId, NThreads *Int NBlocks, 1)) ...</k>
             <gid> GId:Nat </gid> <bid> BId:Nat </bid> <tid> TId:Nat </tid>
             <grids>... GId |-> cuda-grid(_, NBlocks:Nat, NThreads:Nat, _) ...</grids>
             when BId >Int 0 orBool TId >Int 0
