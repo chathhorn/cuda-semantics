@@ -3,7 +3,7 @@ rewriting system.
 
 It's a fork of Chucky Ellison's C semantics with changes and additions to
 support various features of Nvidia's "nvcc" compiler. In addition to the
-special kernel launch syntax ("<<< >>>") and various annotations ("__device__",
+special kernel launch syntax ("<<< >>>") and various attributes ("__device__",
 "__shared__", etc.), many functions from the CUDA Runtime API are at least
 partially supported. See semantics/includes/cuda.h for some clues about the
 current state of things.
@@ -11,6 +11,11 @@ current state of things.
 Installation and build instructions can be found in the README from Chucky's C
 semantics ("README-C"), although we've renamed the generated interpretter to
 "cudak" (from "kcc") and made some other minor changes to the build system to
-avoid conflict or confusion with the vanilla-C semantics.
+avoid conflict or confusion with the vanilla-C semantics. As mentioned in
+README-C, make sure to download the K Framework version 2.7 and not the latest
+version.
+
+Race checking and other properties of the semantics can be configured in
+semantics/cuda-properties.k.
 
 Chris Hathhorn, chathhorn@gmail.com

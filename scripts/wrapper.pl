@@ -134,8 +134,8 @@ sub maudeOutputWrapper {
       # CUDA 
       if ($nfinalcomps == 0 && $nks == ($nsyncs + 1) && $nsyncs > 0) {
             $realOutput .= "\n=============================================================\n";
-            $realOutput .= "CUDA: it's likely we've encountered a deadlock caused by a\n"
-                         . "misplaced __syncthreads(). See below for more details.";
+            $realOutput .= "cudak: We've encountered a deadlock caused by some thread\n"
+                         . "failing to encounter a __syncthreads(). See below for more details.";
       }
 
 	if ($plainOutput) {

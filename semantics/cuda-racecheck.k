@@ -355,7 +355,7 @@ module CUDA-RACECHECK is
       rule [cuda-race]:
             <k> cuda-race
                   => writeToFD(1, 
-                      "CUDA: Possible race on shared device memory detected at "
+                      "cudak: Possible race on shared device memory detected at "
                       +String FileName:String
                       +String ":" +String toString(Line:Int)
                       //+String ":" +String toString(OffsetStart:Int)

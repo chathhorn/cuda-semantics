@@ -110,14 +110,14 @@ module CUDA-THREADS is
             <grids>... GId |-> cuda-grid(_, NBlocks:Nat, NThreads:Nat, _) ...</grids>
  
        rule [cuda-launch-kernel-thread]:
-            <streamContents> cuda-launch-kernel-thread(TBody:K, GId:Nat, BId:Nat, TId:Nat) 
+            <streamContents> cuda-launch-kernel-thread(TBody:K, GId:Nat, BId:Int, TId:Nat) 
                   => cuda-launch-thread(
                         (cuda-alloc-shared(Identifier("$dynamic"), NShared:Nat) 
-                              ~> cuda-put-blockIdx(cuda-new-dim3(cuda-dim1-to-dim3(BId:Nat, GridDim:KResult)))
+                              ~> cuda-put-blockIdx(cuda-new-dim3(cuda-dim1-to-dim3(BId:Int, GridDim:KResult)))
                               ~> cuda-put-threadIdx(cuda-new-dim3(cuda-dim1-to-dim3(TId:Nat, BlockDim:KResult)))
                               ~> cuda-sync-grid
                               ~> TBody:K),
-                        GId:Nat, BId:Nat, TId:Nat, 
+                        GId:Nat, BId:Int, TId:Nat, 
                         cuda-access-device-read cuda-access-device-write) 
             ...</streamContents>
             <grids>... GId |-> cuda-grid(_, _, _, NShared:Nat) ...</grids>
@@ -126,7 +126,7 @@ module CUDA-THREADS is
        rule [cuda-launch-thread]:
             <stream>...
                   <sid> SId:Nat </sid>
-                  <streamContents> cuda-launch-thread(TBody:K, GId:Nat, BId:Nat, TId:Nat, Access:Set) 
+                  <streamContents> cuda-launch-thread(TBody:K, GId:Nat, BId:Int, TId:Nat, Access:Set) 
                         => . 
                   ...</streamContents>
             ...</stream>
@@ -154,7 +154,7 @@ module CUDA-THREADS is
             <thread>
                   <sid> SId:Nat </sid>
                   <gid> GId:Nat </gid>
-                  <bid> BId:Nat </bid>
+                  <bid> BId:Int </bid>
                   <tid> TId:Nat </tid> 
                   <threadAccess> Access:Set </threadAccess>
                   <nextLoc> loc(threadId(ThreadId) +Int 0, 0, 0) </nextLoc>
@@ -243,7 +243,7 @@ module CUDA-THREADS is
       rule [cuda-launch-block-head]:
             <streamContents> 
                   (. => cuda-launch-kernel-thread((Computation(FCall) ~> cuda-sync-grid), GId, BId, 0)) 
-                  ~> cuda-launch-threads(GId:Nat, (BId:Nat => BId -Int 1), (0 => NThreads -Int 1)) 
+                  ~> cuda-launch-threads(GId:Nat, (BId:Int => BId -Int 1), (0 => NThreads -Int 1)) 
             ...</streamContents>
             <grids> ... GId |-> cuda-grid(FCall:K, NBlocks:Nat, NThreads:Nat, NShared:Nat) ... </grids>
             when BId >Int 0
@@ -254,7 +254,7 @@ module CUDA-THREADS is
       rule [cuda-launch-other-threads]:
             <streamContents> 
                   (. => cuda-launch-kernel-thread((Computation(FCall) ~> cuda-sync-grid), GId, BId, TId)) 
-                  ~> cuda-launch-threads(GId:Nat, BId:Nat, (TId:Nat => TId -Int 1)) 
+                  ~> cuda-launch-threads(GId:Nat, BId:Int, (TId:Nat => TId -Int 1)) 
             ...</streamContents>
             <grids> ... GId |-> cuda-grid(FCall:K, NBlocks:Nat, NThreads:Nat, NShared:Nat) ... </grids>
             when TId >Int 0
@@ -284,36 +284,36 @@ module CUDA-THREADS is
       /*@ Start the token at thread 0. */
 
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
-            <tid> 0 </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid> 
+            <tid> 0 </tid> <gid> GId:Nat </gid> <bid> BId:Int </bid> 
             <k> prepareBuiltin((Identifier("__syncthreads")), _) 
                 => cuda-sync(1, GId, BId, 0, NThreads, 1) 
             ...</k>
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
-            <tid> TId:Nat </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid>
+            <tid> TId:Nat </tid> <gid> GId:Nat </gid> <bid> BId:Int </bid>
             <k> prepareBuiltin((Identifier("__syncthreads")), _) 
                 => cuda-sync(0, GId, BId, TId, NThreads, 1) 
             ...</k>
             when TId >Int 0
 
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
-            <tid> 0 </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid> 
+            <tid> 0 </tid> <gid> GId:Nat </gid> <bid> BId:Int </bid> 
             <k> prepareBuiltin((Identifier("__syncthreads_count")), tv(0, _))
                 => cuda-sync(1, GId, BId, 0, NThreads, 0)
             ...</k>
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
-            <tid> 0 </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid> 
+            <tid> 0 </tid> <gid> GId:Nat </gid> <bid> BId:Int </bid> 
             <k> prepareBuiltin((Identifier("__syncthreads_count")), tv(Pred:Nat, _))
                 => cuda-sync(1, GId, BId, 0, NThreads, 1)
             ...</k>
             when Pred:Nat =/=Int 0
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
-            <tid> TId:Nat </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid>
+            <tid> TId:Nat </tid> <gid> GId:Nat </gid> <bid> BId:Int </bid>
             <k> prepareBuiltin((Identifier("__syncthreads_count")), tv(0, _)) 
                 => cuda-sync(0, GId, BId, TId, NThreads, 0)
             ...</k>
             when TId >Int 0
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
-            <tid> TId:Nat </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid>
+            <tid> TId:Nat </tid> <gid> GId:Nat </gid> <bid> BId:Int </bid>
             <k> prepareBuiltin((Identifier("__syncthreads_count")), tv(Pred:Nat, _)) 
                 => cuda-sync(0, GId, BId, TId, NThreads, 1)
             ...</k>
@@ -323,24 +323,24 @@ module CUDA-THREADS is
       syntax K ::= "cuda-sync-type-and"
 
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
-            <tid> 0 </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid> 
+            <tid> 0 </tid> <gid> GId:Nat </gid> <bid> BId:Int </bid> 
             <k> prepareBuiltin((Identifier("__syncthreads_and")), tv(0, _))
                 => cuda-sync(1, GId, BId, 0, NThreads, 0) ~> cuda-sync-type-and
             ...</k>
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
-            <tid> 0 </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid> 
+            <tid> 0 </tid> <gid> GId:Nat </gid> <bid> BId:Int </bid> 
             <k> prepareBuiltin((Identifier("__syncthreads_and")), tv(Pred:Nat, _))
                 => cuda-sync(1, GId, BId, 0, NThreads, 1) ~> cuda-sync-type-and
             ...</k>
             when Pred:Nat =/=Int 0
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
-            <tid> TId:Nat </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid>
+            <tid> TId:Nat </tid> <gid> GId:Nat </gid> <bid> BId:Int </bid>
             <k> prepareBuiltin((Identifier("__syncthreads_and")), tv(0, _)) 
                 => cuda-sync(0, GId, BId, TId, NThreads, 0) ~> cuda-sync-type-and 
             ...</k>
             when TId >Int 0
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
-            <tid> TId:Nat </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid>
+            <tid> TId:Nat </tid> <gid> GId:Nat </gid> <bid> BId:Int </bid>
             <k> prepareBuiltin((Identifier("__syncthreads_and")), tv(Pred:Nat, _)) 
                 => cuda-sync(0, GId, BId, TId, NThreads, 1) ~> cuda-sync-type-and 
             ...</k>
@@ -361,24 +361,24 @@ module CUDA-THREADS is
         same. */
       // TODO: Maybe _or should just be a macro?
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
-            <tid> 0 </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid> 
+            <tid> 0 </tid> <gid> GId:Nat </gid> <bid> BId:Int </bid> 
             <k> prepareBuiltin((Identifier("__syncthreads_or")), tv(0, _))
                 => cuda-sync(1, GId, BId, 0, NThreads, 0)
             ...</k>
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
-            <tid> 0 </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid> 
+            <tid> 0 </tid> <gid> GId:Nat </gid> <bid> BId:Int </bid> 
             <k> prepareBuiltin((Identifier("__syncthreads_or")), tv(Pred:Nat, _))
                 => cuda-sync(1, GId, BId, 0, NThreads, 1)
             ...</k>
             when Pred:Nat =/=Int 0
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
-            <tid> TId:Nat </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid>
+            <tid> TId:Nat </tid> <gid> GId:Nat </gid> <bid> BId:Int </bid>
             <k> prepareBuiltin((Identifier("__syncthreads_or")), tv(0, _)) 
                 => cuda-sync(0, GId, BId, TId, NThreads, 0)
             ...</k>
             when TId >Int 0
       rule <grids>... GId |-> cuda-grid(_, _, NThreads:Nat, _) ...</grids>
-            <tid> TId:Nat </tid> <gid> GId:Nat </gid> <bid> BId:Nat </bid>
+            <tid> TId:Nat </tid> <gid> GId:Nat </gid> <bid> BId:Int </bid>
             <k> prepareBuiltin((Identifier("__syncthreads_or")), tv(Pred:Nat, _)) 
                 => cuda-sync(0, GId, BId, TId, NThreads, 1)
             ...</k>
@@ -416,7 +416,7 @@ module CUDA-THREADS is
             <grids>... GId |-> cuda-grid(_, NBlocks:Nat, NThreads:Nat, _) ...</grids>
       rule [cuda-sync-grid]:
             <k> cuda-sync-grid => Computation(cuda-sync(0, GId, -1, (NThreads *Int BId) +Int TId, NThreads *Int NBlocks, 1)) ...</k>
-            <gid> GId:Nat </gid> <bid> BId:Nat </bid> <tid> TId:Nat </tid>
+            <gid> GId:Nat </gid> <bid> BId:Int </bid> <tid> TId:Nat </tid>
             <grids>... GId |-> cuda-grid(_, NBlocks:Nat, NThreads:Nat, _) ...</grids>
             when BId >Int 0 orBool TId >Int 0
 
